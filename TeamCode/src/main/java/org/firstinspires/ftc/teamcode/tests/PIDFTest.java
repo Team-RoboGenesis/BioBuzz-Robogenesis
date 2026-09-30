@@ -15,6 +15,7 @@ public class PIDFTest extends OpMode {
     private double lastError = 0;
     private DcMotor flyWheel;
     private double targetTicksPerMs = 1000;
+    private String feild = "feild";
     private double lastTime = 0;
     private double currentTime = 0;
     private double currentTicksPerMs = 0;
