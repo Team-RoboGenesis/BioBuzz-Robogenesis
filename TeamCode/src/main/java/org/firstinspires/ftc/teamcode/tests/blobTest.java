@@ -26,6 +26,7 @@ public class blobTest extends OpMode {
     private int exposureTimeMs = 5;
     private int dataCount = 0;
     private int iterations = 0;
+    private boolean firstIteration = true;
     private VisionPortal visionPortal1;
     private VisionPortal visionPortal2;
     private ColorBlobLocatorProcessor cam1RedBlobProcessor;
@@ -44,6 +45,41 @@ public class blobTest extends OpMode {
         }
     }
 
+    public void setupCamSettings() {
+        // setup settings (refactored to stop "Robot Stuck in Init" crash)
+        // wait until the camera is ready to operate
+        while (visionPortal1.getCameraState() != VisionPortal.CameraState.STREAMING) {
+            sleep(20);
+        }
+
+        // Retrieve control objects
+        exposureControl = visionPortal1.getCameraControl(ExposureControl.class);
+        gainControl = visionPortal1.getCameraControl(GainControl.class);
+
+        // Switch exposure mode to Manual to enable tuning
+        exposureControl.setMode(ExposureControl.Mode.Manual);
+
+        // note: Low exposure time reduces motion blur at 100 FPS
+        // Pair lower exposure with a higher gain to maintain picture brightness
+        exposureControl.setExposure(exposureTimeMs, TimeUnit.MILLISECONDS);
+        gainControl.setGain(gain);
+
+//        while (visionPortal2.getCameraState() != VisionPortal.CameraState.STREAMING) {
+//            sleep(20);
+//        }
+//
+//        // Retrieve control objects
+//        exposureControl = visionPortal2.getCameraControl(ExposureControl.class);
+//        gainControl = visionPortal2.getCameraControl(GainControl.class);
+//
+//        // Switch exposure mode to Manual to enable tuning
+//        exposureControl.setMode(ExposureControl.Mode.Manual);
+//
+//        // Global Shutter Strategy: Low exposure time reduces motion blur at 100 FPS
+//        // Pair lower exposure with a higher gain to maintain picture brightness
+//        exposureControl.setExposure(exposureTimeMs, TimeUnit.MILLISECONDS);
+//        gainControl.setGain(gain);
+    }
     @Override
     public void init() {
         // setup camera and processors
@@ -71,24 +107,6 @@ public class blobTest extends OpMode {
                 .setStreamFormat(VisionPortal.StreamFormat.MJPEG) // Mandatory for high-FPS global shutter webcams
                 .build();
 
-        // setup settings
-        // wait until the camera is ready to operate
-        while (visionPortal1.getCameraState() != VisionPortal.CameraState.STREAMING) {
-            sleep(20);
-        }
-
-        // Retrieve control objects
-        exposureControl = visionPortal1.getCameraControl(ExposureControl.class);
-        gainControl = visionPortal1.getCameraControl(GainControl.class);
-
-        // Switch exposure mode to Manual to enable tuning
-        exposureControl.setMode(ExposureControl.Mode.Manual);
-
-        // Global Shutter Strategy: Low exposure time reduces motion blur at 100 FPS
-        // Pair lower exposure with a higher gain to maintain picture brightness
-        exposureControl.setExposure(exposureTimeMs, TimeUnit.MILLISECONDS); // Adjust based on lighting
-        gainControl.setGain(gain); // Higher value increases amplification
-
 
 //        cam2RedBlobProcessor = new ColorBlobLocatorProcessor.Builder()
 //                .setTargetColorRange(ColorRange.RED)
@@ -111,28 +129,17 @@ public class blobTest extends OpMode {
 //                .setStreamFormat(VisionPortal.StreamFormat.MJPEG) // Mandatory for high-FPS global shutter webcams
 //                .build();
 //
-//        while (visionPortal2.getCameraState() != VisionPortal.CameraState.STREAMING) {
-//            sleep(20);
-//        }
-//
-//        // Retrieve control objects
-//        exposureControl = visionPortal2.getCameraControl(ExposureControl.class);
-//        gainControl = visionPortal2.getCameraControl(GainControl.class);
-//
-//        // Switch exposure mode to Manual to enable tuning
-//        exposureControl.setMode(ExposureControl.Mode.Manual);
-//
-//        // Global Shutter Strategy: Low exposure time reduces motion blur at 100 FPS
-//        // Pair lower exposure with a higher gain to maintain picture brightness
-//        exposureControl.setExposure(exposureTimeMs, TimeUnit.MILLISECONDS); // Adjust based on lighting
-//        gainControl.setGain(gain); // Higher value increases amplification
-//
+
         telemetry.addLine("initialized and ready to start!");
         telemetry.update();
     }
 
     @Override
     public void loop() {
+        if (firstIteration) {
+            setupCamSettings();
+            firstIteration = false;
+        }
         dataCount = 0;
         Map<String, List<ColorBlobLocatorProcessor.Blob>> blobs = new HashMap<>();
 
