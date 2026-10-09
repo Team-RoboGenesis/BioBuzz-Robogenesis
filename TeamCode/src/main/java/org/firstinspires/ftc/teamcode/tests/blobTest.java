@@ -24,10 +24,10 @@ public class blobTest extends OpMode {
     private int width = 640;
     private int height = 480;
     private int gain = 25;
-    private int exposureTimeMs = 5;
-    private int telemetryDataLimit = 10;
+    private int exposureTimeMs = 5; // lower is required for high FPS
+    private int telemetryDataLimit = 10; // reduce to improve performance/screen cluttering with many blobs
 
-    // formatting
+    // default value setting
     private int dataCount = 0;
     private int iterations = 0;
     private boolean controlsOptimized = false;
@@ -41,6 +41,7 @@ public class blobTest extends OpMode {
     private ColorBlobLocatorProcessor cam2RedBlobProcessor;
     private ColorBlobLocatorProcessor cam2BlueBlobProcessor;
     private ColorBlobLocatorProcessor cam2YellowBlobProcessor;
+    private Map<String, List<ColorBlobLocatorProcessor.Blob>> blobs = new HashMap<>(); // haha, funny data type name
     private ExposureControl exposureControl;
     private GainControl gainControl;
 
@@ -143,7 +144,6 @@ public class blobTest extends OpMode {
     @Override
     public void loop() {
         dataCount = 0;
-        Map<String, List<ColorBlobLocatorProcessor.Blob>> blobs = new HashMap<>();
 
         // add blobs to the dict
         blobs.put("red blobs",  cam1RedBlobProcessor.getBlobs());
@@ -152,10 +152,18 @@ public class blobTest extends OpMode {
 
         // loop through every color in the dict
         for (Map.Entry<String, List<ColorBlobLocatorProcessor.Blob>> blob : blobs.entrySet()) {
+            // limit telemetry data
+            if (dataCount <= telemetryDataLimit) {
+                break;
+            }
             iterations = 0;
             String telemetryStr = blob.getKey() + " blob "; // make the start of the line ([color] blob )
             // loop through every blob in the color's list
             for (ColorBlobLocatorProcessor.Blob currentBlob : blob.getValue()) {
+                // limit telemetry data
+                if (dataCount <= telemetryDataLimit) {
+                    break;
+                }
                 telemetryStr = telemetryStr + iterations; // add the iteration number ([color] blob [iteration])
                 // Get the bounding box
                 RotatedRect boxFit = currentBlob.getBoxFit();
@@ -169,15 +177,12 @@ public class blobTest extends OpMode {
                 double centerX = boxFit.center.x;
                 double centerY = boxFit.center.y;
 
-                // make it one concise string
-                String dataStr = "x: " + centerX + " y: " + centerY;
-                dataStr = dataStr + " width: " + width + " height: " + height;
-                dataStr = dataStr + " area: " + width * height;
+                double area = width * height;
 
-                // limit for telemetry data
-                if (dataCount <= telemetryDataLimit) {
-                    telemetry.addData(telemetryStr, dataStr);
-                }
+                String dataStr = String.format("x: %d, y: %d, width: %d, height: %d, & area: %d", centerX, centerY, width, height, area); // %d is replaced by a number
+
+                telemetry.addData(telemetryStr, dataStr);
+
                 dataCount++;
                 iterations++;
             }
@@ -190,5 +195,7 @@ public class blobTest extends OpMode {
         }
 
         telemetry.update();
+
+        blobs.clear();
     }
 }
