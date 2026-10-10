@@ -11,9 +11,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 
 public class aprilTagTest {
-
-
-
+    
 
     @TeleOp(name = "AprilTag GlobalShutter Tracking")
     public class AprilTagGlobalShutterOpMode extends LinearOpMode {
