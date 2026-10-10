@@ -23,9 +23,7 @@ public class aprilTagTest {
         @Override
         public void runOpMode() {
             // 1. Initialize the AprilTag processor
-            // You can add custom tag libraries or decimation here if needed
             AprilTagProcessor aprilTag = new AprilTagProcessor.Builder()
-                    // You can add custom tag libraries or decimation here if needed
                     .build();
 
             // 2. Build the VisionPortal, linking it to your configured webcam name
@@ -45,7 +43,6 @@ public class aprilTagTest {
                 for (AprilTagDetection detection : currentDetections) {
                     if (detection.metadata != null) {
                         telemetry.addLine(String.format("\n==== (ID %d) ====", detection.id));
-
 
                         telemetry.addData("XYZ Translation", "X: %6.2f, Y: %6.2f, Z: %6.2f (inches)",
                                 detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z);
