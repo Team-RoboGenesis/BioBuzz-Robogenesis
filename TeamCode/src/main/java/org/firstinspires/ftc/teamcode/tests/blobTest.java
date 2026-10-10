@@ -10,15 +10,19 @@ import org.firstinspires.ftc.vision.opencv.ColorBlobLocatorProcessor;
 import org.firstinspires.ftc.vision.opencv.ColorRange;
 import org.opencv.core.Rect;
 import org.opencv.core.RotatedRect;
+import org.firstinspires.ftc.vision.opencv.ColorRange;
+import org.firstinspires.ftc.vision.opencv.ColorSpace;
+import org.opencv.core.Scalar;
 
 import android.util.Size;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-@TeleOp(name = "blob test")
+@TeleOp(name = "blob data test")
 public class blobTest extends OpMode {
     // settings
     private int width = 640;
@@ -29,6 +33,7 @@ public class blobTest extends OpMode {
 
     // default value setting
     private int dataCount = 0;
+    private int blobCount = 0;
     private int iterations = 0;
     private boolean controlsOptimized = false;
 
@@ -45,23 +50,50 @@ public class blobTest extends OpMode {
     private ExposureControl exposureControl;
     private GainControl gainControl;
 
+    private ColorBlobLocatorProcessor createProcessor(ColorRange range) {
+        return new ColorBlobLocatorProcessor.Builder()
+                .setTargetColorRange(range)
+                .setContourMode(
+                        ColorBlobLocatorProcessor.ContourMode.EXTERNAL_ONLY
+                )
+                .setBlurSize(5)
+                .setMorphOperationType(
+                        ColorBlobLocatorProcessor.MorphOperationType.CLOSING
+                )
+                .setErodeSize(5)
+                .setDilateSize(5)
+                .setDrawContours(true)
+                .build();
+    }
 
 
     @Override
     public void init() {
         // setup camera and processors
         // 1. Build the ColorBlobLocator Processors
-        cam1RedBlobProcessor = new ColorBlobLocatorProcessor.Builder()
-                .setTargetColorRange(ColorRange.RED)
-                .build();
+        ColorRange red = new ColorRange(
+                ColorSpace.HSV,
+                new Scalar(0, 80, 75),
+                new Scalar(12, 255, 255)
+        );
 
-        cam1BlueBlobProcessor = new ColorBlobLocatorProcessor.Builder()
-                .setTargetColorRange(ColorRange.BLUE)
-                .build();
+        ColorRange blue = new ColorRange(
+                ColorSpace.HSV,
+                new Scalar(95, 80, 65),
+                new Scalar(135, 255, 255)
+        );
 
-        cam1YellowBlobProcessor = new ColorBlobLocatorProcessor.Builder()
-                .setTargetColorRange(ColorRange.YELLOW)
-                .build();
+        ColorRange yellow = new ColorRange(
+                ColorSpace.HSV,
+                new Scalar(18, 80, 85),
+                new Scalar(38, 255, 255)
+        );
+
+        cam1RedBlobProcessor = createProcessor(red);
+
+        cam1BlueBlobProcessor = createProcessor(blue);
+
+        cam1YellowBlobProcessor = createProcessor(yellow);
 
         WebcamName webcam1 = hardwareMap.get(WebcamName.class, "cam 1");
 
@@ -75,16 +107,20 @@ public class blobTest extends OpMode {
                 .build();
 
 
+
 //        cam2RedBlobProcessor = new ColorBlobLocatorProcessor.Builder()
-//                .setTargetColorRange(ColorRange.RED)
+//                .setTargetColorRange(red)
+//                .setContourMode(ColorBlobLocatorProcessor.ContourMode.EXTERNAL_ONLY)
 //                .build();
 //
 //        cam2BlueBlobProcessor = new ColorBlobLocatorProcessor.Builder()
-//                .setTargetColorRange(ColorRange.BLUE)
+//                .setTargetColorRange(blue)
+//                .setContourMode(ColorBlobLocatorProcessor.ContourMode.EXTERNAL_ONLY)
 //                .build();
 //
 //        cam2YellowBlobProcessor = new ColorBlobLocatorProcessor.Builder()
-//                .setTargetColorRange(ColorRange.YELLOW)
+//                .setTargetColorRange(yellow)
+//                .setContourMode(ColorBlobLocatorProcessor.ContourMode.EXTERNAL_ONLY)
 //                .build();
 //        WebcamName webcam2 = hardwareMap.get(WebcamName.class, "cam 2");
 
@@ -104,7 +140,7 @@ public class blobTest extends OpMode {
     // runs after init but before loop (I didn't know this existed either)
     @Override
     public void init_loop() {
-        if (!controlsOptimized && visionPortal1.getCameraState() == VisionPortal.CameraState.STREAMING/*&& visionPortal2.getCameraState() == VisionPortal.CameraState.STREAMING*/) { // remove comment for multiple cameras
+        if (!controlsOptimized && visionPortal1.getCameraState() == VisionPortal.CameraState.STREAMING/* && visionPortal2.getCameraState() == VisionPortal.CameraState.STREAMING*/) { // remove comment for multiple cameras
             // Retrieve control objects
             exposureControl = visionPortal1.getCameraControl(ExposureControl.class);
             gainControl = visionPortal1.getCameraControl(GainControl.class);
@@ -150,21 +186,33 @@ public class blobTest extends OpMode {
         blobs.put("blue blobs",  cam1BlueBlobProcessor.getBlobs());
         blobs.put("yellow blobs",  cam1YellowBlobProcessor.getBlobs());
 
+        // remove small blobs
+        for (List<ColorBlobLocatorProcessor.Blob> blobList : blobs.values()) {
+            ColorBlobLocatorProcessor.Util.filterByArea(
+                    500, 300000, blobList
+            );
+
+            ColorBlobLocatorProcessor.Util.filterByAspectRatio(
+                    1.0, 1.6, blobList
+            );
+        }
+
+        blobCount = blobs.get("red blobs").size() + blobs.get("blue blobs").size() + blobs.get("yellow blobs").size();
+
         // loop through every color in the dict
         for (Map.Entry<String, List<ColorBlobLocatorProcessor.Blob>> blob : blobs.entrySet()) {
             // limit telemetry data
-            if (dataCount <= telemetryDataLimit) {
-                break;
-            }
             iterations = 0;
-            String telemetryStr = blob.getKey() + " blob "; // make the start of the line ([color] blob )
+
             // loop through every blob in the color's list
             for (ColorBlobLocatorProcessor.Blob currentBlob : blob.getValue()) {
+                String telemetryStr = blob.getKey(); // make the start of the line ([color] blob )
                 // limit telemetry data
-                if (dataCount <= telemetryDataLimit) {
+
+                if (dataCount >= telemetryDataLimit) {
                     break;
                 }
-                telemetryStr = telemetryStr + iterations; // add the iteration number ([color] blob [iteration])
+                telemetryStr = telemetryStr + " " + iterations; // add the iteration number ([color] blob [iteration])
                 // Get the bounding box
                 RotatedRect boxFit = currentBlob.getBoxFit();
                 // convert to non-rotated rect
@@ -177,9 +225,10 @@ public class blobTest extends OpMode {
                 double centerX = boxFit.center.x;
                 double centerY = boxFit.center.y;
 
-                double area = width * height;
+                double area = currentBlob.getContourArea();
 
-                String dataStr = String.format("x: %d, y: %d, width: %d, height: %d, & area: %d", centerX, centerY, width, height, area); // %d is replaced by a number
+
+                String dataStr = "x: " + Math.floor(centerX) + ", y: " +  Math.floor(centerY) + ", & area: " + Math.floor(area); // %d is replaced by a number
 
                 telemetry.addData(telemetryStr, dataStr);
 
@@ -194,6 +243,8 @@ public class blobTest extends OpMode {
             telemetry.addLine("no blobs were detected!");
         }
 
+
+        telemetry.addData("blob count", blobCount);
         telemetry.update();
 
         blobs.clear();
