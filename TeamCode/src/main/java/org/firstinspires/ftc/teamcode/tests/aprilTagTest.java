@@ -57,7 +57,7 @@ public class aprilTagTest {
 
                         telemetry.addData("Relative Angles", "Yaw: %6.2f, Pitch: %6.2f, Roll: %6.2f (deg)",
                                 detection.ftcPose.yaw, detection.ftcPose.pitch, detection.ftcPose.roll);
-                        
+
                     } else {
                         telemetry.addLine(String.format("== (ID %d) Unknown", detection.id));
                     }
