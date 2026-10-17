@@ -1,16 +1,20 @@
 package org.firstinspires.ftc.teamcode.TeleOp;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+import android.graphics.Color;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
+import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
+import java.util.ArrayList;
 import java.util.List;
 
 class GateSensor {
@@ -18,9 +22,12 @@ class GateSensor {
     private double threshold;
     private boolean last;
     private boolean entrance;
+    private double color;
+    private NormalizedColorSensor colorSensor;
 
-    public void init(String deviceName, double threshold) {
-        this.distanceSensor = hardwareMap.get(DistanceSensor.class, deviceName);
+    public void init(HardwareMap hwMap, String deviceName, double threshold) {
+        this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
+        this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
         this.threshold = threshold;
         this.last = false;
         this.entrance = deviceName.toLowerCase().contains("in"); // kinda dumb but it removes an argument
@@ -33,42 +40,57 @@ class GateSensor {
         if (current != this.last) {
             this.last = current;
 
-            if (this.entrance) {
+            if (this.entrance && current) {
                 return 1;
-            } else {
+            } else if (!current) {
                 return -1;
             }
         }
 
         return 0;
     }
+
+    public double getColor() {
+        NormalizedRGBA colors = this.colorSensor.getNormalizedColors();
+
+        float[] hsvValues = new float[3];
+        Color.colorToHSV(colors.toColor(), hsvValues);
+        double hue = hsvValues[0];
+        return hue / 360;
+    }
 }
 
 @TeleOp(name = "basic TeleOp")
 public class basicTeleOp extends OpMode {
+    // constants
+    private final double OFF = 0;
+    private final double RED = 0.278;
+    private final double BLUE = 0.611;
+    private final double YELLOW = 0.388;
+    private final double ON = 1;
+
     // config
-    private final double nectarInThreshold = 10;
+    private final double distInThreshold = 10;
     private final double pollenInThreshold = 10;
-    private final double nectarOutThreshold = 10;
+    private final double distOutThreshold = 10;
     private final double pollenOutThreshold = 10;
+    private final double nectarColor = RED;
 
     // device setup
     private DcMotor rightFront = null;
     private DcMotor leftFront = null;
     private DcMotor rightBack = null;
     private DcMotor leftBack = null;
-    private GateSensor nectarIn;
-    private GateSensor nectarOut;
+    private GateSensor distIn;
+    private GateSensor distOut;
     private GateSensor pollenIn;
     private GateSensor pollenOut;
-    private List<Servo> leds;
+    private List<Servo> leds = new ArrayList<>();
+    private List<Double> elements = new ArrayList<>();
+    private List<GateSensor> distanceSensors = new ArrayList<>();
 
-    // default values
-    private int elementCount = 0;
-    private boolean lastNectarIn = false;
-    private boolean lastPollenIn = false;
-    private boolean lastNectarOut = false;
-    private boolean lastPollenOut = false;
+    // starting values
+    private boolean last = false;
 
     @Override
     public void init() {
@@ -84,14 +106,12 @@ public class basicTeleOp extends OpMode {
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // make sensors
-        nectarIn = new GateSensor();
-        nectarOut = new GateSensor();
-        pollenIn = new GateSensor();
-        pollenOut = new GateSensor();
-        nectarIn.init("nectarIn", nectarInThreshold);
-        nectarOut.init("nectarOut", nectarOutThreshold);
-        pollenIn.init("pollenIn", pollenInThreshold);
-        pollenOut.init("pollenOut", pollenOutThreshold);
+        distIn = new GateSensor();
+        distOut = new GateSensor();
+        distIn.init(hardwareMap, "dist in", distInThreshold);
+        distOut.init(hardwareMap,"dist out", distOutThreshold);
+        distanceSensors.add(distIn);
+        distanceSensors.add(distOut);
 
         // make LED's
         leds.add(hardwareMap.get(Servo.class, "led1"));
@@ -102,6 +122,34 @@ public class basicTeleOp extends OpMode {
 
     @Override
     public void loop() {
+        // element counting with funny class
+        for (GateSensor distSen : distanceSensors) {
+            int data = distSen.getData();
+            if (data == 1) {
+                elements.add(distSen.getColor());
+            } else if (data == -1) {
+                elements.remove(distSen.getColor());
+            }
+        }
+
+        // led color setting
+        for (Servo led : leds) {
+            led.setPosition(OFF);
+        }
+
+        int i = 0;
+        for (double elementColor : elements) {
+            leds.get(i).setPosition(elementColor);
+            i++;
+        }
+
+        if (elements.size() == 4) {
+            // TODO: stop intake motor
+        } else if (elements.size() > 4) {
+            // TODO: reverse intake/launch excess
+        }
+
+        // button mapping
         // basic drivetrain setup
         double y = -gamepad1.left_stick_y; // Remember, Y stick is reversed!
         double x = gamepad1.left_stick_x;
@@ -112,16 +160,17 @@ public class basicTeleOp extends OpMode {
         rightFront.setPower(y - x - rx);
         rightBack.setPower(y + x - rx);
 
-        // element counting with funny class
-        elementCount += nectarIn.getData();
-        elementCount += nectarOut.getData();
-        elementCount += pollenIn.getData();
-        elementCount += pollenOut.getData();
-        for (Servo led : leds) {
-            led.setPosition(0);
+        if (last != gamepad2.a) {
+            last = !last;
+            if (gamepad2.a) {
+                // TODO: run intake motor here
+            } else {
+                // TODO: stop intake motor here
+            }
         }
-        for (int i = 0; i < elementCount; i++) {
-            leds.get(i).setPosition(1);
+
+        if (gamepad2.b) {
+            // TODO: align & launch
         }
     }
 
