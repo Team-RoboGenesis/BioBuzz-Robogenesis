@@ -26,14 +26,14 @@ import java.util.concurrent.TimeUnit;
 @TeleOp(name = "blob positioning test")
 public class blobPositioningTest extends OpMode{
     // settings
-    private int width = 640;
-    private int height = 480;
-    private int gain = 25;
-    private int exposureTimeMs = 5; // lower is required for high FPS
-    private int telemetryDataLimit = 10; // reduce to improve performance/screen cluttering with many blobs
-    private int FOV = 70;
-    private double nectarAreaAt20Cm = 4500;
-    private double pollenAreaAt20Cm = 10;
+    private final int width = 640;
+    private final int height = 480;
+    private final int gain = 25;
+    private final int exposureTimeMs = 5; // lower is required for high FPS
+    private final int telemetryDataLimit = 10; // reduce to improve performance/screen cluttering with many blobs
+    private final int FOV = 70;
+    private final double nectarAreaAt20Cm = 4500;
+    private final double pollenAreaAt20Cm = 10;
 
     // default value settings
     private int dataCount = 0;
@@ -216,12 +216,12 @@ public class blobPositioningTest extends OpMode{
 //        blobs.put("yellow blob",  cam1YellowBlobProcessor.getBlobs());
 
         for (List<ColorBlobLocatorProcessor.Blob> blobList : blobs.values()) {
-            ColorBlobLocatorProcessor.Util.filterByArea(
-                    500, 300000, blobList
+            ColorBlobLocatorProcessor.Util.filterByCriteria(
+                    ColorBlobLocatorProcessor.BlobCriteria.BY_CONTOUR_AREA, 500, 300000, blobList
             );
 
-            ColorBlobLocatorProcessor.Util.filterByAspectRatio(
-                    1.0, 1.6, blobList
+            ColorBlobLocatorProcessor.Util.filterByCriteria(
+                    ColorBlobLocatorProcessor.BlobCriteria.BY_ASPECT_RATIO, 1.0, 1.6, blobList
             );
         }
 
