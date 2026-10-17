@@ -47,10 +47,10 @@ class GateSensor {
 @TeleOp(name = "basic TeleOp")
 public class basicTeleOp extends OpMode {
     // config
-    private double nectarInThreshold = 10;
-    private double pollenInThreshold = 10;
-    private double nectarOutThreshold = 10;
-    private double pollenOutThreshold = 10;
+    private final double nectarInThreshold = 10;
+    private final double pollenInThreshold = 10;
+    private final double nectarOutThreshold = 10;
+    private final double pollenOutThreshold = 10;
 
     // device setup
     private DcMotor rightFront = null;
@@ -89,7 +89,7 @@ public class basicTeleOp extends OpMode {
         pollenIn = new GateSensor();
         pollenOut = new GateSensor();
         nectarIn.init("nectarIn", nectarInThreshold);
-        nectarOut.init("nectarOut", nectarInThreshold);
+        nectarOut.init("nectarOut", nectarOutThreshold);
         pollenIn.init("pollenIn", pollenInThreshold);
         pollenOut.init("pollenOut", pollenOutThreshold);
 
