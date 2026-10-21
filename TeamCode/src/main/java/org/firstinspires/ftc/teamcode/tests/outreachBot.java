@@ -76,6 +76,10 @@ public class outreachBot extends OpMode {
 
             double averageDistance = totalDistance / (colors.size() - 1);
 
+            for (Servo led : leds) {
+                led.setPosition(0);
+            }
+
             sleep(5000);
 
             if (averageDistance <= difficulty) {
