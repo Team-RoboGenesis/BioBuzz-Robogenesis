@@ -17,9 +17,9 @@ public class outreachBot extends LinearOpMode {
     private double difficulty = 0;
     private boolean last = false;
 
-    private void sleep(double milis){
+    private void sleep(double millis){
         try {
-            Thread.sleep((long) milis);
+            Thread.sleep((long) millis);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
