@@ -1,6 +1,6 @@
 package org.firstinspires.ftc.teamcode.tests;
 
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 
@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @TeleOp(name = "outreach bot")
-public class outreachBot extends OpMode {
+public class outreachBot extends LinearOpMode {
     private List<Servo> leds = new ArrayList<>();
     private List<Servo> frozenLeds = new ArrayList<>();
     private List<Servo> ledsLeft = new ArrayList<>();
@@ -26,78 +26,84 @@ public class outreachBot extends OpMode {
     }
 
     @Override
-    public void init() {
+    public void runOpMode() throws InterruptedException {
+        // init
         leds.add(hardwareMap.get(Servo.class, "led1"));
         leds.add(hardwareMap.get(Servo.class, "led2"));
         leds.add(hardwareMap.get(Servo.class, "led3"));
         leds.add(hardwareMap.get(Servo.class, "led4"));
-    }
 
-    @Override
-    public void loop() {
-        // get data
-        if (gamepad2.touchpad_finger_1) {
-            speed = (gamepad2.touchpad_finger_1_x + 1) / 2;
-            difficulty = (gamepad2.touchpad_finger_1_y + 1) / 2;
-        }
+        telemetry.addData("Status", "Initialized");
+        telemetry.update();
 
-        // button pressing logic
-        if (last != gamepad1.a) {
-            last = gamepad1.a;
-            if (gamepad1.a && !(frozenLeds.size() == leds.size())) {
-                frozenLeds.add(leds.get(frozenLeds.size()));
-            }
-        }
+        waitForStart();
 
-        // update ledsLeft
-        ledsLeft.clear();
-        ledsLeft.addAll(leds);
-        ledsLeft.removeAll(frozenLeds);
-
-        // color LEDs
-        for (Servo led : ledsLeft) {
-            double power = led.getPosition() + speed / 5;
-            if (power > 1) {
-                power = 0;
-            }
-            led.setPosition(power);
-        }
-
-        if (frozenLeds.size() == leds.size()) {
-            for (Servo led : leds) {
-                colors.add(led.getPosition());
+        while (opModeIsActive()) {
+            // loop
+            // get data
+            if (gamepad2.touchpad_finger_1) {
+                speed = (gamepad2.touchpad_finger_1_x + 1) / 2;
+                difficulty = (gamepad2.touchpad_finger_1_y + 1) / 2;
             }
 
-            double totalDistance = 0.0;
-
-            for (int i = 0; i < colors.size() - 1; i++) {
-                totalDistance += Math.abs(colors.get(i + 1) - colors.get(i));
-            }
-
-            double averageDistance = totalDistance / (colors.size() - 1);
-
-            for (Servo led : leds) {
-                led.setPosition(0);
-            }
-
-            sleep(5000);
-
-            if (averageDistance <= difficulty) {
-                for (Servo led : leds) {
-                    led.setPosition(0.5);
-                }
-            } else {
-                for (Servo led : leds) {
-                    led.setPosition(0.278);
+            // button pressing logic
+            if (last != gamepad1.a) {
+                last = gamepad1.a;
+                if (gamepad1.a && !(frozenLeds.size() == leds.size())) {
+                    frozenLeds.add(leds.get(frozenLeds.size()));
                 }
             }
 
-            while (!gamepad1.b) {
-                sleep(100);
+            // update ledsLeft
+            ledsLeft.clear();
+            ledsLeft.addAll(leds);
+            ledsLeft.removeAll(frozenLeds);
+
+            // color LEDs
+            for (Servo led : ledsLeft) {
+                double power = led.getPosition() + speed / 5;
+                if (power > 1) {
+                    power = 0;
+                }
+                led.setPosition(power);
             }
-            
-            frozenLeds.clear();
+
+            if (frozenLeds.size() == leds.size()) {
+                for (Servo led : leds) {
+                    colors.add(led.getPosition());
+                }
+
+                double totalDistance = 0.0;
+
+                for (int i = 0; i < colors.size() - 1; i++) {
+                    totalDistance += Math.abs(colors.get(i + 1) - colors.get(i));
+                }
+
+                double averageDistance = totalDistance / (colors.size() - 1);
+
+                for (Servo led : leds) {
+                    led.setPosition(0);
+                }
+
+                sleep(5000);
+
+                if (averageDistance <= difficulty) {
+                    for (Servo led : leds) {
+                        led.setPosition(0.5);
+                    }
+                } else {
+                    for (Servo led : leds) {
+                        led.setPosition(0.278);
+                    }
+                }
+
+                while (!gamepad1.b) {
+                    sleep(100);
+                }
+
+                frozenLeds.clear();
+            }
+            sleep(10);
         }
-        sleep(10);
     }
 }
