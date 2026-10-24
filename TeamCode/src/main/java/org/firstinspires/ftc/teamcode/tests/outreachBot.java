@@ -13,7 +13,7 @@ public class outreachBot extends LinearOpMode {
     private List<Servo> frozenLeds = new ArrayList<>();
     private List<Servo> ledsLeft = new ArrayList<>();
     private List<Double> colors = new ArrayList<>();
-    private double speed = 0;
+    private double speed = 0.1;
     private double difficulty = 0;
     private boolean last = false;
 
@@ -33,6 +33,10 @@ public class outreachBot extends LinearOpMode {
         leds.add(hardwareMap.get(Servo.class, "led3"));
         leds.add(hardwareMap.get(Servo.class, "led4"));
 
+        for (Servo led : leds) {
+            led.setPosition(0.5);
+        }
+
         telemetry.addData("Status", "Initialized");
         telemetry.update();
 
@@ -45,6 +49,8 @@ public class outreachBot extends LinearOpMode {
                 speed = (gamepad2.touchpad_finger_1_x + 1) / 2;
                 difficulty = (gamepad2.touchpad_finger_1_y + 1) / 2;
             }
+            telemetry.addData("speed", speed);
+            telemetry.addData("difficulty", difficulty);
 
             // button pressing logic
             if (last != gamepad1.a) {
@@ -61,9 +67,9 @@ public class outreachBot extends LinearOpMode {
 
             // color LEDs
             for (Servo led : ledsLeft) {
-                double power = led.getPosition() + speed / 5;
-                if (power > 1) {
-                    power = 0;
+                double power = led.getPosition() + speed / 30;
+                if (power > 0.788) {
+                    power = 0.288;
                 }
                 led.setPosition(power);
             }
@@ -85,7 +91,7 @@ public class outreachBot extends LinearOpMode {
                     led.setPosition(0);
                 }
 
-                sleep(5000);
+                sleep(2000);
 
                 if (averageDistance <= difficulty) {
                     for (Servo led : leds) {
@@ -93,7 +99,7 @@ public class outreachBot extends LinearOpMode {
                     }
                 } else {
                     for (Servo led : leds) {
-                        led.setPosition(0.278);
+                        led.setPosition(0.288);
                     }
                 }
 
@@ -104,6 +110,8 @@ public class outreachBot extends LinearOpMode {
                 frozenLeds.clear();
             }
             sleep(10);
+            telemetry.addData("frozen leds", frozenLeds);
+            telemetry.update();
         }
     }
 }
