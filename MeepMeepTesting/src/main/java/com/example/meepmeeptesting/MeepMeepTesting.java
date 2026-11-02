@@ -27,7 +27,7 @@ public class MeepMeepTesting {
                 .splineToSplineHeading(new Pose2d(0, 63, Math.toRadians(270)), Math.toRadians(90))
                 .build());
 
-        meepMeep.setBackground(MeepMeep.Background.FIELD_DECODE_JUICE_DARK)
+        meepMeep.setBackground(MeepMeep.Background.GRID_GRAY)
                 .setDarkMode(true)
                 .setBackgroundAlpha(0.95f)
                 .addEntity(myBot)

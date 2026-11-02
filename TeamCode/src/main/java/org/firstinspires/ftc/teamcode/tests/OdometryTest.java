@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode.tests;
 
 import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.Pose2d;
-import com.acmerobotics.roadrunner.SequentialAction;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.acmerobotics.roadrunner.ftc.Actions;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -14,23 +13,20 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
 public class OdometryTest extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
-        Pose2d beginPose = new Pose2d(new Vector2d(0, 63), Math.toRadians(270));
+        // Start at the center of the field facing forward (90 degrees)
+        Pose2d beginPose = new Pose2d(0, 0, Math.toRadians(90));
 
         MecanumDrive drive = new MecanumDrive(hardwareMap, beginPose);
 
         waitForStart();
 
+        if (isStopRequested()) return;
+
+        // Drive straight forward 30 inches
         Action path = drive.actionBuilder(beginPose)
-                .strafeTo(new Vector2d(0, 0))
-                .strafeTo(new Vector2d(10, 0))
-                .strafeTo(new Vector2d(10, 10))
-                .strafeTo(new Vector2d(-20, 20))
-                .strafeToLinearHeading(new Vector2d(20, -20), Math.toRadians(90))
-                .splineToConstantHeading(new Vector2d(40, 40), Math.toRadians(0))
-                .splineToSplineHeading(new Pose2d(-40, 40, Math.toRadians(180)), Math.toRadians(90))
-                .strafeToSplineHeading(new Vector2d(30, 30), Math.toRadians(180))
-                .splineToSplineHeading(new Pose2d(0, 63, Math.toRadians(270)), Math.toRadians(90))
+                .lineToY(30)
                 .build();
-        Actions.runBlocking(new SequentialAction(path));
+
+        Actions.runBlocking(path);
     }
 }
