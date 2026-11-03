@@ -10,19 +10,63 @@ public class PIDFTest extends OpMode {
     private double I = 1;
     private double D = 1;
     private double F = 1;
-    private double integralSum = 0;
-    private double error = 0;
-    private double lastError = 0;
+    private double initalI = 0;
+    private PIDF pidf;
     private DcMotor flyWheel;
     private double targetTicksPerMs = 1000;
-    private String feild = "feild";
     private double lastTime = 0;
     private double currentTime = 0;
     private double currentTicksPerMs = 0;
-    private boolean checkLast = true;
+
+    class PIDF {
+        public double p, i, d, f;
+        private double integral;
+        private double previousError;
+        private boolean initialized = false;
+
+        private PIDF(double p, double i, double d, double f, double initialI) {
+            this.p = p;
+            this.i = i;
+            this.d = d;
+            this.f = f;
+            this.integral = initialI;
+            this.previousError = 0.0;
+        }
+        private double tick(double target, double current, double dt) {
+            double error = target - current;
+
+            if (!initialized) {
+                previousError = error;
+                initialized = true;
+            }
+
+            // Integral term
+            integral += error * dt;
+
+            // Derivative term
+            double derivative = dt > 0
+                    ? (error - previousError) / dt
+                    : 0.0;
+
+            // Feedforward term
+            double feedforward = f * target;
+
+            // PIDF output
+            double output = p * error +
+                    i * integral +
+                    d * derivative +
+                    feedforward;
+
+            // Store error for the next tick
+            previousError = error;
+
+            return output;
+        }
+    }
 
     @Override
     public void init() {
+        pidf = new PIDF(P, I, D, F, initalI);
         flyWheel = hardwareMap.get(DcMotor.class, "flywheel");
         flyWheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         telemetry.addLine("ready to start!");
@@ -31,10 +75,6 @@ public class PIDFTest extends OpMode {
 
     @Override
     public void loop() {
-        if(checkLast) {
-            lastTime = System.currentTimeMillis();
-            checkLast = false;
-        }
 
         currentTime = System.currentTimeMillis();
         double dt = (currentTime - lastTime);
@@ -43,24 +83,8 @@ public class PIDFTest extends OpMode {
             dt = 0.001;
         }
 
-        currentTicksPerMs = flyWheel.getCurrentPosition() / dt;
-        error = currentTicksPerMs - targetTicksPerMs;
+        double output = pidf.tick(targetTicksPerMs, currentTicksPerMs, dt);
 
-        double pOut = P * error;
-
-        integralSum += error * dt;
-        double iOut = I * integralSum;
-
-        double derivative = (error - lastError) / dt;
-        double dOut = D * derivative;
-
-        double fOut = F * targetTicksPerMs;
-
-        double totalOutput = pOut + iOut + dOut + fOut;
-
-        lastTime = System.currentTimeMillis();
-        lastError = error;
-
-        flyWheel.setPower(totalOutput);
+        flyWheel.setPower(output);
     }
 }
