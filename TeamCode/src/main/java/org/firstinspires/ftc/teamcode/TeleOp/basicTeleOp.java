@@ -18,49 +18,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import java.util.ArrayList;
 import java.util.List;
 
-class GateSensor {
-    private DistanceSensor distanceSensor;
-    private double threshold;
-    private boolean last;
-    private boolean entrance;
-    private double color;
-    private NormalizedColorSensor colorSensor;
-
-    public void init(HardwareMap hwMap, String deviceName, double threshold) {
-        this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
-        this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
-        this.threshold = threshold;
-        this.last = false;
-        this.entrance = deviceName.toLowerCase().contains("in"); // kinda dumb but it removes an argument
-    }
-
-    public int getData() {
-        double distance = this.distanceSensor.getDistance(DistanceUnit.CM);
-        boolean current = distance < this.threshold;
-
-        if (current != this.last) {
-            this.last = current;
-
-            if (this.entrance && current) {
-                return 1;
-            } else if (!current) {
-                return -1;
-            }
-        }
-
-        return 0;
-    }
-
-    public double getColor() {
-        NormalizedRGBA colors = this.colorSensor.getNormalizedColors();
-
-        float[] hsvValues = new float[3];
-        Color.colorToHSV(colors.toColor(), hsvValues);
-        double hue = hsvValues[0];
-        return hue / 360;
-    }
-}
-
 @TeleOp(name = "basic TeleOp")
 public class basicTeleOp extends OpMode {
     // constants
@@ -70,12 +27,15 @@ public class basicTeleOp extends OpMode {
     private final double YELLOW = 0.388;
     private final double ON = 1;
     private final double INTAKEPOWER = 0.8;
+    private final double TICKSPERORTATION = 28;
+    private final double shootingRPM = 100; // TODO: get real value
 
     // config
     private final double distInThreshold = 10;
     private final double distOutThreshold = 10;
 
     // device setup
+    private PIDF pidf;
     private DcMotor rightFront = null;
     private DcMotor leftFront = null;
     private DcMotor rightBack = null;
@@ -83,8 +43,8 @@ public class basicTeleOp extends OpMode {
     private DcMotor intake = null;
     private DcMotor turretFlywheel = null;
     private CRServo turretBase = null;
-    private CRServo flowerOuttake1 = null;
-    private CRServo flowerOuttake2 = null;
+    private CRServo flowerIntake1 = null;
+    private CRServo flowerIntake2 = null;
     private CRServo transferServo1 = null;
     private CRServo transferServo2 = null;
     private CRServo transferServo3 = null;
@@ -99,6 +59,108 @@ public class basicTeleOp extends OpMode {
 
     // starting values
     private boolean lastAPress = false;
+    private double targetRPM = 0;
+    private double targetTicksPerMs = 0;
+    private double lastTime = 0;
+    private double currentTime = 0;
+    private double currentTicksPerMs = 0;
+    private double lastTicks = 0;
+    private double currentTicks = 0;
+
+    class GateSensor {
+        private DistanceSensor distanceSensor;
+        private double threshold;
+        private boolean last;
+        private boolean entrance;
+        private double color;
+        private NormalizedColorSensor colorSensor;
+
+        public void init(HardwareMap hwMap, String deviceName, double threshold) {
+            this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
+            this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
+            this.threshold = threshold;
+            this.last = false;
+            this.entrance = deviceName.toLowerCase().contains("in"); // kinda dumb but it removes an argument
+        }
+
+        public int getData() {
+            double distance = this.distanceSensor.getDistance(DistanceUnit.CM);
+            boolean current = distance < this.threshold;
+
+            if (current != this.last) {
+                this.last = current;
+
+                if (this.entrance && current) {
+                    return 1;
+                } else if (!current) {
+                    return -1;
+                }
+            }
+
+            return 0;
+        }
+
+        public double getColor() {
+            NormalizedRGBA colors = this.colorSensor.getNormalizedColors();
+
+            float[] hsvValues = new float[3];
+            Color.colorToHSV(colors.toColor(), hsvValues);
+            double hue = hsvValues[0];
+            return hue / 360;
+        }
+    }
+
+    class PIDF {
+        public double p, i, d, f;
+        private double integral;
+        private double previousError;
+        private boolean initialized = false;
+
+        private PIDF(double p, double i, double d, double f) {
+            // fallback for if you don't supply initialI
+            this(p, i, d, f, 0.0);
+        }
+        private PIDF(double p, double i, double d, double f, double initialI) {
+            // initialize variables
+            this.p = p;
+            this.i = i;
+            this.d = d;
+            this.f = f;
+            this.integral = initialI;
+            this.previousError = 0.0;
+        }
+        private double tick(double target, double current, double dt) {
+            // tick one timestep
+            double error = target - current;
+
+            if (!initialized) {
+                previousError = error;
+                initialized = true;
+            }
+
+            // Integral term
+            integral += error * dt;
+
+            // Derivative term
+            double derivative = dt > 0
+                    ? (error - previousError) / dt
+                    : 0.0;
+
+            // Feedforward term
+            double feedforward = f * target;
+
+            // PIDF output
+            double output = p * error +
+                    i * integral +
+                    d * derivative +
+                    feedforward;
+
+            // Store error for the next tick
+            previousError = error;
+
+            return output;
+        }
+    }
 
     @Override
     public void init() {
@@ -118,8 +180,8 @@ public class basicTeleOp extends OpMode {
 
         // make servos
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
-        flowerOuttake1 = hardwareMap.get(CRServo.class, "flowerOuttake1");
-        flowerOuttake2 = hardwareMap.get(CRServo.class, "flowerOuttake2");
+        flowerIntake1 = hardwareMap.get(CRServo.class, "flowerIntake1");
+        flowerIntake2 = hardwareMap.get(CRServo.class, "flowerIntake2");
         transferServo1 = hardwareMap.get(CRServo.class, "transferServo1");
         transferServo2 = hardwareMap.get(CRServo.class, "transferServo2");
         transferServo3 = hardwareMap.get(CRServo.class, "transferServo3");
@@ -128,10 +190,18 @@ public class basicTeleOp extends OpMode {
         // make sensors
         distIn = new GateSensor();
         distOut = new GateSensor();
-        distIn.init(hardwareMap, "dist in", distInThreshold);
-        distOut.init(hardwareMap,"dist out", distOutThreshold);
+        distIn.init(hardwareMap, "distIn", distInThreshold);
+        distOut.init(hardwareMap,"distOut", distOutThreshold);
         distanceSensors.add(distIn);
         distanceSensors.add(distOut);
+
+        // make PIDF
+        double p = 0;
+        double i = 0;
+        double d = 0;
+        double f = 0;
+        double initialI = 0;
+        pidf = new PIDF(p, i, d, f, initialI);
 
         // make LED's
         leds.add(hardwareMap.get(Servo.class, "led1"));
@@ -198,8 +268,25 @@ public class basicTeleOp extends OpMode {
         // align & launch
         if (gamepad2.b) {
             // TODO: align & launch
+            targetRPM = shootingRPM;
+        } else if (gamepad2.x) {
+            targetRPM = OFF;
         }
 
-        // TODO: add PIDF regulation for turretFlywheel
+        // tick PIDF
+        targetTicksPerMs = (targetRPM) / 60_000 * TICKSPERORTATION;
+        currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
+        double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
+        dt = Math.max(0.001, dt);
+
+        currentTicks = turretFlywheel.getCurrentPosition();
+        currentTicksPerMs = (currentTicks - lastTicks) / dt;
+
+        double output = pidf.tick(targetTicksPerMs, currentTicksPerMs, dt);
+        output = Math.max(OFF, Math.min(ON, output));
+        turretFlywheel.setPower(output);
+
+        lastTime = currentTime;
+        lastTicks = currentTicks;
     }
 }
