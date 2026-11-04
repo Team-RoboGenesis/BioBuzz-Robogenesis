@@ -29,6 +29,8 @@ public class basicTeleOp extends OpMode {
     private final double INTAKEPOWER = 0.8;
     private final double TICKSPERORTATION = 28;
     private final double shootingRPM = 100; // TODO: get real value
+    private final double armDownPos = 1; // TODO: get real value
+    private final double armUpPos = 0; // TODO: get real value
 
     // config
     private final double distInThreshold = 10;
@@ -43,8 +45,8 @@ public class basicTeleOp extends OpMode {
     private DcMotor intake = null;
     private DcMotor turretFlywheel = null;
     private CRServo turretBase = null;
-    private CRServo flowerIntake1 = null;
-    private CRServo flowerIntake2 = null;
+    private Servo flowerIntake1 = null;
+    private Servo flowerIntake2 = null;
     private CRServo transferServo1 = null;
     private CRServo transferServo2 = null;
     private CRServo transferServo3 = null;
@@ -72,7 +74,6 @@ public class basicTeleOp extends OpMode {
         private double threshold;
         private boolean last;
         private boolean entrance;
-        private double color;
         private NormalizedColorSensor colorSensor;
 
         public void init(HardwareMap hwMap, String deviceName, double threshold) {
@@ -180,8 +181,8 @@ public class basicTeleOp extends OpMode {
 
         // make servos
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
-        flowerIntake1 = hardwareMap.get(CRServo.class, "flowerIntake1");
-        flowerIntake2 = hardwareMap.get(CRServo.class, "flowerIntake2");
+        flowerIntake1 = hardwareMap.get(Servo.class, "flowerIntake1");
+        flowerIntake2 = hardwareMap.get(Servo.class, "flowerIntake2");
         transferServo1 = hardwareMap.get(CRServo.class, "transferServo1");
         transferServo2 = hardwareMap.get(CRServo.class, "transferServo2");
         transferServo3 = hardwareMap.get(CRServo.class, "transferServo3");
@@ -238,8 +239,11 @@ public class basicTeleOp extends OpMode {
         // element check
         if (elements.size() == 4) {
             intake.setPower(OFF);
+//            flowerIntake1.setPosition(armUpPos);
+//            flowerIntake2.setPosition(armUpPos);
         } else if (elements.size() > 4) {
             // TODO: launch excess
+            targetRPM = shootingRPM;
         }
 
         // button mapping
@@ -271,13 +275,19 @@ public class basicTeleOp extends OpMode {
             targetRPM = shootingRPM;
         } else if (gamepad2.x) {
             targetRPM = OFF;
+        } else if (gamepad2.dpad_down) {
+            flowerIntake1.setPosition(armDownPos);
+            flowerIntake2.setPosition(armDownPos);
+        } else if (gamepad2.dpad_up) {
+            flowerIntake1.setPosition(armUpPos);
+            flowerIntake2.setPosition(armUpPos);
         }
 
         // tick PIDF
         targetTicksPerMs = (targetRPM) / 60_000 * TICKSPERORTATION;
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
-        dt = Math.max(0.001, dt);
+        dt = Math.max(0.000001, dt);
 
         currentTicks = turretFlywheel.getCurrentPosition();
         currentTicksPerMs = (currentTicks - lastTicks) / dt;
