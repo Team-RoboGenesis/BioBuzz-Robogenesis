@@ -26,15 +26,15 @@ public class basicTeleOp extends OpMode {
     private final double BLUE = 0.611;
     private final double YELLOW = 0.388;
     private final double ON = 1;
-    private final double INTAKEPOWER = 0.8;
+    private final double INTAKEPOWER = 0.8;  // TODO: get real value
     private final double TICKSPERORTATION = 28;
     private final double shootingRPM = 100; // TODO: get real value
     private final double armDownPos = 1; // TODO: get real value
     private final double armUpPos = 0; // TODO: get real value
 
     // config
-    private final double distInThreshold = 10;
-    private final double distOutThreshold = 10;
+    private final double distInThreshold = 10; // TODO: get real value
+    private final double distOutThreshold = 10; // TODO: get real value
 
     // device setup
     private PIDF pidf;
