@@ -76,7 +76,7 @@ public class basicTeleOp extends OpMode {
         private boolean entrance;
         private NormalizedColorSensor colorSensor;
 
-        public void init(HardwareMap hwMap, String deviceName, double threshold) {
+        public GateSensor(HardwareMap hwMap, String deviceName, double threshold) {
             this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
             this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
             this.threshold = threshold;
@@ -189,10 +189,8 @@ public class basicTeleOp extends OpMode {
         transferServo4 = hardwareMap.get(CRServo.class, "transferServo4");
 
         // make sensors
-        distIn = new GateSensor();
-        distOut = new GateSensor();
-        distIn.init(hardwareMap, "distIn", distInThreshold);
-        distOut.init(hardwareMap,"distOut", distOutThreshold);
+        distIn = new GateSensor(hardwareMap, "distIn", distInThreshold);
+        distOut = new GateSensor(hardwareMap,"distOut", distOutThreshold);
         distanceSensors.add(distIn);
         distanceSensors.add(distOut);
 
