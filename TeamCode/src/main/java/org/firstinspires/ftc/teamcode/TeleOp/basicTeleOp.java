@@ -2,6 +2,9 @@ package org.firstinspires.ftc.teamcode.TeleOp;
 
 import android.graphics.Color;
 
+import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -14,6 +17,7 @@ import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +31,8 @@ public class basicTeleOp extends OpMode {
     private final double YELLOW = 0.388;
     private final double ON = 1;
     private final double INTAKEPOWER = 0.8;  // TODO: get real value
-    private final double TICKSPERORTATION = 28;
+    private final double MOTORTICKSPERORTATION = 28;
+    private final double SERVOTICKSPERORTATION = 4096;
     private final double shootingRPM = 100; // TODO: get real value
     private final double armDownPos = 1; // TODO: get real value
     private final double armUpPos = 0; // TODO: get real value
@@ -38,6 +43,7 @@ public class basicTeleOp extends OpMode {
 
     // device setup
     private PIDF pidf;
+    private MecanumDrive drive = null;
     private DcMotor rightFront = null;
     private DcMotor leftFront = null;
     private DcMotor rightBack = null;
@@ -65,9 +71,12 @@ public class basicTeleOp extends OpMode {
     private double targetTicksPerMs = 0;
     private double lastTime = 0;
     private double currentTime = 0;
-    private double currentTicksPerMs = 0;
-    private double lastTicks = 0;
-    private double currentTicks = 0;
+    private double motorCurrentTicksPerMs = 0;
+    private double motorLastTicks = 0;
+    private double motorCurrentTicks = 0;
+    private double servoCurrentTicksPerMs = 0;
+    private double servoLastTicks = 0;
+    private double servoCurrentTicks = 0;
 
     class GateSensor {
         private DistanceSensor distanceSensor;
@@ -75,10 +84,14 @@ public class basicTeleOp extends OpMode {
         private boolean last;
         private boolean entrance;
         private NormalizedColorSensor colorSensor;
+        private boolean color;
 
-        public GateSensor(HardwareMap hwMap, String deviceName, double threshold) {
+        public GateSensor(HardwareMap hwMap, String deviceName, double threshold, boolean color) {
             this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
-            this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
+            this.color = color;
+            if (color) {
+                this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
+            }
             this.threshold = threshold;
             this.last = false;
             this.entrance = deviceName.toLowerCase().contains("in"); // kinda dumb but it removes an argument
@@ -102,10 +115,16 @@ public class basicTeleOp extends OpMode {
         }
 
         public double getColor() {
+            if (!color) {
+                return 0;
+            }
+
             NormalizedRGBA colors = this.colorSensor.getNormalizedColors();
+            // get colors with colors.red, green and blue
 
             float[] hsvValues = new float[3];
             Color.colorToHSV(colors.toColor(), hsvValues);
+
             double hue = hsvValues[0];
             return hue / 360;
         }
@@ -179,6 +198,9 @@ public class basicTeleOp extends OpMode {
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
+        // Initialize MecanumDrive
+        drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, Math.toRadians(0))); // TODO: get real values
+
         // make servos
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
         flowerIntake1 = hardwareMap.get(Servo.class, "flowerIntake1");
@@ -189,8 +211,8 @@ public class basicTeleOp extends OpMode {
         transferServo4 = hardwareMap.get(CRServo.class, "transferServo4");
 
         // make sensors
-        distIn = new GateSensor(hardwareMap, "distIn", distInThreshold);
-        distOut = new GateSensor(hardwareMap,"distOut", distOutThreshold);
+        distIn = new GateSensor(hardwareMap, "distIn", distInThreshold, true);
+        distOut = new GateSensor(hardwareMap,"distOut", distOutThreshold, false);
         distanceSensors.add(distIn);
         distanceSensors.add(distOut);
 
@@ -244,6 +266,35 @@ public class basicTeleOp extends OpMode {
             targetRPM = shootingRPM;
         }
 
+        // Read pose
+        Pose2d poseEstimate = drive.localizer.getPose();
+
+        // Create a vector from the gamepad x/y inputs
+        // Then, rotate that vector by the inverse of that heading
+        Vector2d input = poseEstimate.heading.inverse().times(
+                new Vector2d(
+                        -gamepad1.left_stick_y,
+                        -gamepad1.left_stick_x
+                )
+        );
+
+        // Pass in the rotated input + right stick value for rotation
+        // Rotation is not part of the rotated input thus must be passed in separately
+        drive.setDrivePowers(
+                new PoseVelocity2d(
+                        input,
+                        -gamepad1.right_stick_x
+                )
+        );
+
+        drive.updatePoseEstimate();
+
+        // Print pose to telemetry
+        telemetry.addData("x", poseEstimate.position.x);
+        telemetry.addData("y", poseEstimate.position.y);
+        telemetry.addData("heading", Math.toDegrees(poseEstimate.heading.toDouble()));
+        telemetry.update();
+
         // button mapping
         // basic drivetrain setup
         double y = -gamepad1.left_stick_y; // Remember, Y stick is reversed!
@@ -282,19 +333,20 @@ public class basicTeleOp extends OpMode {
         }
 
         // tick PIDF
-        targetTicksPerMs = (targetRPM) / 60_000 * TICKSPERORTATION;
+        targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
 
-        currentTicks = turretFlywheel.getCurrentPosition();
-        currentTicksPerMs = (currentTicks - lastTicks) / dt;
+        motorCurrentTicks = turretFlywheel.getCurrentPosition();
+        servoCurrentTicks = leftBack.getCurrentPosition(); // TODO: get servo encoder here (will be a motor encoder)
+        motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
 
-        double output = pidf.tick(targetTicksPerMs, currentTicksPerMs, dt);
+        double output = pidf.tick(targetTicksPerMs, motorCurrentTicksPerMs, dt);
         output = Math.max(OFF, Math.min(ON, output));
         turretFlywheel.setPower(output);
 
         lastTime = currentTime;
-        lastTicks = currentTicks;
+        motorLastTicks = motorCurrentTicks;
     }
 }
