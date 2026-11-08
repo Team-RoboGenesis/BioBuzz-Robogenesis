@@ -74,9 +74,11 @@ public class basicTeleOp extends OpMode {
     private double motorCurrentTicksPerMs = 0;
     private double motorLastTicks = 0;
     private double motorCurrentTicks = 0;
-    private double servoCurrentTicksPerMs = 0;
+    private double turretCurrentAngle = 0;
     private double servoLastTicks = 0;
     private double servoCurrentTicks = 0;
+    private double turretLastAngle = 0;
+    private double targetAngle = 0;
 
     class GateSensor {
         private DistanceSensor distanceSensor;
@@ -334,6 +336,10 @@ public class basicTeleOp extends OpMode {
 
         // tick PIDF
         targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
+        // TODO: get target angle
+        double goalY = 0;
+        double goalX = 0;
+        targetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
@@ -341,12 +347,19 @@ public class basicTeleOp extends OpMode {
         motorCurrentTicks = turretFlywheel.getCurrentPosition();
         servoCurrentTicks = leftBack.getCurrentPosition(); // TODO: get servo encoder here (will be a motor encoder)
         motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
+        turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
 
         double output = pidf.tick(targetTicksPerMs, motorCurrentTicksPerMs, dt);
         output = Math.max(OFF, Math.min(ON, output));
         turretFlywheel.setPower(output);
 
+        output = pidf.tick(targetAngle, turretCurrentAngle, dt);
+        output = Math.max(OFF, Math.min(ON, output));
+        turretBase.setPower(output);
+
         lastTime = currentTime;
         motorLastTicks = motorCurrentTicks;
+        turretLastAngle = turretCurrentAngle;
+        servoLastTicks = servoCurrentTicks;
     }
 }
