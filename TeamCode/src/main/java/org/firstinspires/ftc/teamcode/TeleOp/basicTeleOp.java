@@ -78,7 +78,7 @@ public class basicTeleOp extends OpMode {
     private double servoLastTicks = 0;
     private double servoCurrentTicks = 0;
     private double turretLastAngle = 0;
-    private double targetAngle = 0;
+    private double turretTargetAngle = 0;
 
     class GateSensor {
         private DistanceSensor distanceSensor;
@@ -336,16 +336,16 @@ public class basicTeleOp extends OpMode {
 
         // tick PIDF
         targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
-        // TODO: get target angle
+        // TODO: get real goal positions
         double goalY = 0;
         double goalX = 0;
-        targetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
+        turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
 
         motorCurrentTicks = turretFlywheel.getCurrentPosition();
-        servoCurrentTicks = leftBack.getCurrentPosition(); // TODO: get servo encoder here (will be a motor encoder)
+        servoCurrentTicks = leftBack.getCurrentPosition(); // TODO: get servo-tied encoder here (will be a motor encoder)
         motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
         turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
 
@@ -353,7 +353,7 @@ public class basicTeleOp extends OpMode {
         output = Math.max(OFF, Math.min(ON, output));
         turretFlywheel.setPower(output);
 
-        output = pidf.tick(targetAngle, turretCurrentAngle, dt);
+        output = pidf.tick(turretTargetAngle, turretCurrentAngle, dt);
         output = Math.max(OFF, Math.min(ON, output));
         turretBase.setPower(output);
 
