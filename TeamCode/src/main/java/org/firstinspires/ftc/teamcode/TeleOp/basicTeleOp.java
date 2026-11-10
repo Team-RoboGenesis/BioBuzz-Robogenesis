@@ -40,6 +40,8 @@ public class basicTeleOp extends OpMode {
     // config
     private final double distInThreshold = 10; // TODO: get real value
     private final double distOutThreshold = 10; // TODO: get real value
+    private final double upperTurretLimit = 360; // TODO: get real value
+    private final double lowerTurretLimit = 0; // TODO: get real value
 
     // device setup
     private PIDF pidf;
@@ -340,6 +342,7 @@ public class basicTeleOp extends OpMode {
         double goalY = 0;
         double goalX = 0;
         turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
+        turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
