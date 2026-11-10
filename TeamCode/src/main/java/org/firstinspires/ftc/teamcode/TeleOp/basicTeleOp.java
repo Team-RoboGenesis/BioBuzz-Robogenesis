@@ -20,7 +20,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @TeleOp(name = "basic TeleOp")
 public class basicTeleOp extends OpMode {
@@ -68,6 +70,8 @@ public class basicTeleOp extends OpMode {
     private List<GateSensor> distanceSensors = new ArrayList<>();
 
     // starting values
+    private List<Double> closest = new ArrayList<>();
+    private Map<Double, List<Double>> points = new HashMap<>();
     private boolean lastAPress = false;
     private double targetRPM = 0;
     private double targetTicksPerMs = 0;
@@ -186,6 +190,25 @@ public class basicTeleOp extends OpMode {
         }
     }
 
+    public List<Double> getClosestPoint(double value) {
+        List<Double> xValues = new ArrayList<>(points.keySet());
+        if (xValues.isEmpty()) {
+            throw new IllegalArgumentException("List cannot be empty");
+        }
+
+        double closest = xValues.get(0);
+        double minDiff = Math.abs((long) closest - value); // Use long to prevent int overflow
+
+        for (double num : xValues) {
+            double diff = Math.abs((double) num - value);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = num;
+            }
+        }
+        return points.get(closest);
+    }
+
     @Override
     public void init() {
         // make motors
@@ -227,6 +250,15 @@ public class basicTeleOp extends OpMode {
         double f = 0;
         double initialI = 0;
         pidf = new PIDF(p, i, d, f, initialI);
+
+        // make hive centers
+        // TODO: add real values
+        double leftHiveX = 30, leftHiveY = 0;
+        double rightHiveX = -30, rightHiveY = 0;
+
+        points.put(leftHiveX, List.of(leftHiveX, leftHiveY));
+        points.put(rightHiveX, List.of(rightHiveX, rightHiveY));
+
 
         // make LED's
         leds.add(hardwareMap.get(Servo.class, "led1"));
@@ -338,17 +370,21 @@ public class basicTeleOp extends OpMode {
 
         // tick PIDF
         targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
-        // TODO: get real goal positions
-        double goalY = 0;
-        double goalX = 0;
+
+        closest = getClosestPoint(poseEstimate.position.x); // get closest hive position based on X position
+        double goalY = closest.get(0);
+        double goalX = closest.get(1);
+
         turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
         turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
+
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
 
         motorCurrentTicks = turretFlywheel.getCurrentPosition();
         servoCurrentTicks = leftBack.getCurrentPosition(); // TODO: get servo-tied encoder here (will be a motor encoder)
+
         motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
         turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
 
