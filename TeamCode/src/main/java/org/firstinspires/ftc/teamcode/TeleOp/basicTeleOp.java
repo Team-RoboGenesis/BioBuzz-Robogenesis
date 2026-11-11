@@ -200,7 +200,7 @@ public class basicTeleOp extends OpMode {
         double minDiff = Math.abs((long) closest - value); // Use long to prevent int overflow
 
         for (double num : xValues) {
-            double diff = Math.abs((double) num - value);
+            double diff = Math.abs(num - value);
             if (diff < minDiff) {
                 minDiff = diff;
                 closest = num;
