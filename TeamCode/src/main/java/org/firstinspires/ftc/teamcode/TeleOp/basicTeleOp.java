@@ -38,6 +38,8 @@ public class basicTeleOp extends OpMode {
     private final double shootingRPM = 100; // TODO: get real value
     private final double armDownPos = 1; // TODO: get real value
     private final double armUpPos = 0; // TODO: get real value
+    private final double topTrasferServoSpeed = 0; // TODO: get real value
+    private final double bottomTrasferServoSpeed = 0; // TODO: get real value
 
     // config
     private final double distInThreshold = 10; // TODO: get real value
@@ -58,10 +60,10 @@ public class basicTeleOp extends OpMode {
     private CRServo turretBase = null;
     private Servo flowerIntake1 = null;
     private Servo flowerIntake2 = null;
-    private CRServo transferServo1 = null;
-    private CRServo transferServo2 = null;
-    private CRServo transferServo3 = null;
-    private CRServo transferServo4 = null;
+    private CRServo topRightTransferServo = null;
+    private CRServo topLeftTransferServo = null;
+    private CRServo bottomRightTransferServo = null;
+    private CRServo bottomLeftTransferServo = null;
     private GateSensor distIn;
     private GateSensor distOut;
     private GateSensor pollenIn;
@@ -76,7 +78,7 @@ public class basicTeleOp extends OpMode {
     private boolean lastAPress = false;
     private double targetRPM = 0;
     private double targetTicksPerMs = 0;
-    private double lastTime = 0;
+    private double lastTime = System.nanoTime();
     private double currentTime = 0;
     private double motorCurrentTicksPerMs = 0;
     private double motorLastTicks = 0;
@@ -233,10 +235,10 @@ public class basicTeleOp extends OpMode {
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
         flowerIntake1 = hardwareMap.get(Servo.class, "flowerIntake1");
         flowerIntake2 = hardwareMap.get(Servo.class, "flowerIntake2");
-        transferServo1 = hardwareMap.get(CRServo.class, "transferServo1");
-        transferServo2 = hardwareMap.get(CRServo.class, "transferServo2");
-        transferServo3 = hardwareMap.get(CRServo.class, "transferServo3");
-        transferServo4 = hardwareMap.get(CRServo.class, "transferServo4");
+        topRightTransferServo = hardwareMap.get(CRServo.class, "topRightTransferServo");
+        topLeftTransferServo = hardwareMap.get(CRServo.class, "topLeftTransferServo");
+        bottomRightTransferServo = hardwareMap.get(CRServo.class, "bottomRightTransferServo");
+        bottomLeftTransferServo = hardwareMap.get(CRServo.class, "bottomLeftTransferServo");
 
         // make sensors
         distIn = new GateSensor(hardwareMap, "distIn", distInThreshold, true);
@@ -365,6 +367,10 @@ public class basicTeleOp extends OpMode {
         if (gamepad2.b) {
             // TODO: align & launch
             targetRPM = shootingRPM;
+            topRightTransferServo.setPower(topTrasferServoSpeed);
+            topLeftTransferServo.setPower(topTrasferServoSpeed);
+            bottomRightTransferServo.setPower(bottomTrasferServoSpeed);
+            bottomLeftTransferServo.setPower(bottomTrasferServoSpeed);
         } else if (gamepad2.x) {
             targetRPM = OFF;
         } else if (gamepad2.dpad_down) {

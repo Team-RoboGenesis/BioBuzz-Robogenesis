@@ -24,7 +24,7 @@ public class PIDFTurretTuner extends OpMode {
     private double servoLastTicks = 0;
     private double turretLastAngle = 0;
     private double targetTicksPerMs = 1000;
-    private double lastTime = 0;
+    private double lastTime = System.nanoTime();
     private double currentTime = 0;
 
     // devices and PIDF
@@ -37,9 +37,7 @@ public class PIDFTurretTuner extends OpMode {
         private double previousError;
         private boolean initialized = false;
 
-        private PIDF(double p, double i, double d) {
-            this(p, i, d, 0.0);
-        }
+        private PIDF(double p, double i, double d) { this(p, i, d, 0.0); }
         private PIDF(double p, double i, double d, double initialI) {
             // initialize variables
             this.p = p;
