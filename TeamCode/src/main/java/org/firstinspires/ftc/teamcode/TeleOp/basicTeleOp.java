@@ -47,6 +47,7 @@ public class basicTeleOp extends OpMode {
 
     // device setup
     private PIDF pidf;
+    private PIDF flywheelPid;
     private MecanumDrive drive = null;
     private DcMotor rightFront = null;
     private DcMotor leftFront = null;
@@ -226,7 +227,7 @@ public class basicTeleOp extends OpMode {
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // Initialize MecanumDrive
-        drive = new MecanumDrive(hardwareMap, new Pose2d(0, 0, Math.toRadians(0))); // TODO: get real values
+        drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90))); // TODO: get real values
 
         // make servos
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
@@ -250,6 +251,12 @@ public class basicTeleOp extends OpMode {
         double f = 0;
         double initialI = 0;
         pidf = new PIDF(p, i, d, f, initialI);
+
+        p = 0;
+        i = 0;
+        d = 0;
+        initialI = 0;
+        flywheelPid = new PIDF(p, i, d, 0, initialI);
 
         // make hive centers
         // TODO: add real values
@@ -392,7 +399,7 @@ public class basicTeleOp extends OpMode {
         output = Math.max(OFF, Math.min(ON, output));
         turretFlywheel.setPower(output);
 
-        output = pidf.tick(turretTargetAngle, turretCurrentAngle, dt);
+        output = flywheelPid.tick(turretTargetAngle, turretCurrentAngle, dt);
         output = Math.max(OFF, Math.min(ON, output));
         turretBase.setPower(output);
 
