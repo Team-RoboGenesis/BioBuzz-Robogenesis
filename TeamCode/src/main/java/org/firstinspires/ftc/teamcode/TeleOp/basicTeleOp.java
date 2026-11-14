@@ -32,7 +32,7 @@ public class basicTeleOp extends OpMode {
     private final double BLUE = 0.611;
     private final double YELLOW = 0.388;
     private final double ON = 1;
-    private final double INTAKEPOWER = 0.8;  // TODO: get real value
+    private final double INTAKEPOWER = 1;  // TODO: get real value
     private final double MOTORTICKSPERORTATION = 28;
     private final double SERVOTICKSPERORTATION = 4096;
     private final double shootingRPM = 100; // TODO: get real value
