@@ -47,7 +47,7 @@ public class outreachBot extends LinearOpMode {
             // get data
             if (gamepad2.touchpad_finger_1) {
                 speed = (gamepad2.touchpad_finger_1_x + 1) / 2;
-                difficulty = (gamepad2.touchpad_finger_1_y + 1) / 2;
+                difficulty = (gamepad2.touchpad_finger_1_y + 1) / 4;
             }
             telemetry.addData("speed", speed);
             telemetry.addData("difficulty", difficulty);
@@ -110,7 +110,6 @@ public class outreachBot extends LinearOpMode {
                 frozenLeds.clear();
             }
             sleep(10);
-            telemetry.addData("frozen leds", frozenLeds);
             telemetry.update();
         }
     }
