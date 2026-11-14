@@ -18,8 +18,7 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
         waitForStart();
         Action path = drive.actionBuilder(beginPose)
                 .strafeTo(new Vector2d(0, 0))
-                .build()
-                .lineToSplineHeading(new Pose2d(40, 40, Math.toRadians(90)))
+                .splineToSplineHeading(new Pose2d(40, 40, Math.toRadians(90)), Math.toRadians(90))
                 .build();
         }}
 

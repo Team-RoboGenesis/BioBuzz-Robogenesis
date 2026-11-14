@@ -38,8 +38,7 @@ public class basicTeleOp extends OpMode {
     private final double shootingRPM = 100; // TODO: get real value
     private final double armDownPos = 1; // TODO: get real value
     private final double armUpPos = 0; // TODO: get real value
-    private final double topTrasferServoSpeed = 0; // TODO: get real value
-    private final double bottomTrasferServoSpeed = 0; // TODO: get real value
+    private final double trasferServoSpeed = 0; // TODO: get real value
 
     // config
     private final double distInThreshold = 10; // TODO: get real value
@@ -58,16 +57,12 @@ public class basicTeleOp extends OpMode {
     private DcMotor intake = null;
     private DcMotor turretFlywheel = null;
     private CRServo turretBase = null;
-    private Servo flowerIntake1 = null;
-    private Servo flowerIntake2 = null;
-    private CRServo topRightTransferServo = null;
-    private CRServo topLeftTransferServo = null;
-    private CRServo bottomRightTransferServo = null;
-    private CRServo bottomLeftTransferServo = null;
+    private Servo rightFlowerIntake = null;
+    private Servo leftFlowerIntake = null;
+    private CRServo rightTransferServo = null;
+    private CRServo leftTransferServo = null;
     private GateSensor distIn;
     private GateSensor distOut;
-    private GateSensor pollenIn;
-    private GateSensor pollenOut;
     private List<Servo> leds = new ArrayList<>();
     private List<Double> elements = new ArrayList<>();
     private List<GateSensor> distanceSensors = new ArrayList<>();
@@ -79,7 +74,7 @@ public class basicTeleOp extends OpMode {
     private double targetRPM = 0;
     private double targetTicksPerMs = 0;
     private double lastTime = System.nanoTime();
-    private double currentTime = 0;
+    private double currentTime = System.nanoTime();
     private double motorCurrentTicksPerMs = 0;
     private double motorLastTicks = 0;
     private double motorCurrentTicks = 0;
@@ -220,7 +215,7 @@ public class basicTeleOp extends OpMode {
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
         intake = hardwareMap.get(DcMotor.class, "intake");
-        turretFlywheel = hardwareMap.get(DcMotor.class, "turret");
+        turretFlywheel = hardwareMap.get(DcMotor.class, "flywheel");
 
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
@@ -233,12 +228,10 @@ public class basicTeleOp extends OpMode {
 
         // make servos
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
-        flowerIntake1 = hardwareMap.get(Servo.class, "flowerIntake1");
-        flowerIntake2 = hardwareMap.get(Servo.class, "flowerIntake2");
-        topRightTransferServo = hardwareMap.get(CRServo.class, "topRightTransferServo");
-        topLeftTransferServo = hardwareMap.get(CRServo.class, "topLeftTransferServo");
-        bottomRightTransferServo = hardwareMap.get(CRServo.class, "bottomRightTransferServo");
-        bottomLeftTransferServo = hardwareMap.get(CRServo.class, "bottomLeftTransferServo");
+        rightFlowerIntake = hardwareMap.get(Servo.class, "rightFlowerIntake");
+        leftFlowerIntake = hardwareMap.get(Servo.class, "leftFlowerIntake");
+        rightTransferServo = hardwareMap.get(CRServo.class, "rightTransferServo");
+        leftTransferServo = hardwareMap.get(CRServo.class, "leftTransferServo");
 
         // make sensors
         distIn = new GateSensor(hardwareMap, "distIn", distInThreshold, true);
@@ -246,7 +239,8 @@ public class basicTeleOp extends OpMode {
         distanceSensors.add(distIn);
         distanceSensors.add(distOut);
 
-        // make PIDF
+        // make PIDFs
+        // make flywheel PIDF
         double p = 0;
         double i = 0;
         double d = 0;
@@ -254,6 +248,7 @@ public class basicTeleOp extends OpMode {
         double initialI = 0;
         pidf = new PIDF(p, i, d, f, initialI);
 
+        // make turret angle PID
         p = 0;
         i = 0;
         d = 0;
@@ -367,18 +362,16 @@ public class basicTeleOp extends OpMode {
         if (gamepad2.b) {
             // TODO: align & launch
             targetRPM = shootingRPM;
-            topRightTransferServo.setPower(topTrasferServoSpeed);
-            topLeftTransferServo.setPower(topTrasferServoSpeed);
-            bottomRightTransferServo.setPower(bottomTrasferServoSpeed);
-            bottomLeftTransferServo.setPower(bottomTrasferServoSpeed);
+            rightTransferServo.setPower(trasferServoSpeed);
+            leftTransferServo.setPower(trasferServoSpeed);
         } else if (gamepad2.x) {
             targetRPM = OFF;
         } else if (gamepad2.dpad_down) {
-            flowerIntake1.setPosition(armDownPos);
-            flowerIntake2.setPosition(armDownPos);
+            rightFlowerIntake.setPosition(armDownPos);
+            leftFlowerIntake.setPosition(armDownPos);
         } else if (gamepad2.dpad_up) {
-            flowerIntake1.setPosition(armUpPos);
-            flowerIntake2.setPosition(armUpPos);
+            rightFlowerIntake.setPosition(armUpPos);
+            leftFlowerIntake.setPosition(armUpPos);
         }
 
         // tick PIDF
@@ -396,7 +389,7 @@ public class basicTeleOp extends OpMode {
         dt = Math.max(0.000001, dt);
 
         motorCurrentTicks = turretFlywheel.getCurrentPosition();
-        servoCurrentTicks = leftBack.getCurrentPosition(); // TODO: get servo-tied encoder here (will be a motor encoder)
+        servoCurrentTicks = rightFront.getCurrentPosition();
 
         motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
         turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);

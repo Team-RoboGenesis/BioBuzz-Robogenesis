@@ -1,8 +1,17 @@
 package org.firstinspires.ftc.teamcode.tests;
 
+import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+
+import org.firstinspires.ftc.teamcode.MecanumDrive;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @TeleOp(name = "PIDF test")
 public class PIDFTurretTuner extends OpMode {
@@ -12,6 +21,8 @@ public class PIDFTurretTuner extends OpMode {
     private double D = 1;
     private double initalI = 0;
     private final double SERVOTICKSPERORTATION = 4096;
+    private final double lowerTurretLimit = 0;
+    private final double upperTurretLimit = 360;
 
     // constants
     private final double OFF = 0;
@@ -25,11 +36,15 @@ public class PIDFTurretTuner extends OpMode {
     private double turretLastAngle = 0;
     private double targetTicksPerMs = 1000;
     private double lastTime = System.nanoTime();
+    private Map<Double, List<Double>> points = new HashMap<>();
     private double currentTime = 0;
+    private MecanumDrive drive = null;
+    private List<Double> closest = new ArrayList<>();
 
     // devices and PIDF
     private PIDF pid;
     private DcMotor turretServo;
+    private DcMotor rightFront = null;
 
     class PIDF {
         public double p, i, d, f;
@@ -80,14 +95,45 @@ public class PIDFTurretTuner extends OpMode {
         }
     }
 
+    public List<Double> getClosestPoint(double value) {
+        List<Double> xValues = new ArrayList<>(points.keySet());
+        if (xValues.isEmpty()) {
+            throw new IllegalArgumentException("List cannot be empty");
+        }
+
+        double closest = xValues.get(0);
+        double minDiff = Math.abs((long) closest - value); // Use long to prevent int overflow
+
+        for (double num : xValues) {
+            double diff = Math.abs(num - value);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = num;
+            }
+        }
+        return points.get(closest);
+    }
+
     @Override
     public void init() {
         // PIDF setup
         pid = new PIDF(P, I, D, initalI);
 
+        drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90))); // TODO: get real values
+
+        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
+        rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
+
         // device setup
         turretServo = hardwareMap.get(DcMotor.class, "flywheel");
         turretServo.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        // TODO: add real values
+        double leftHiveX = 30, leftHiveY = 0;
+        double rightHiveX = -30, rightHiveY = 0;
+
+        points.put(leftHiveX, List.of(leftHiveX, leftHiveY));
+        points.put(rightHiveX, List.of(rightHiveX, rightHiveY));
 
         // finish init
         telemetry.addLine("ready to start!");
@@ -101,9 +147,17 @@ public class PIDFTurretTuner extends OpMode {
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
 
-        servoCurrentTicks = turretServo.getCurrentPosition(); // TODO: get servo-tied encoder here (will be a motor encoder)
+        servoCurrentTicks = rightFront.getCurrentPosition();
+        Pose2d poseEstimate = drive.localizer.getPose();
 
         turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
+
+        closest = getClosestPoint(poseEstimate.position.x); // get closest hive position based on X position
+        double goalY = closest.get(0);
+        double goalX = closest.get(1);
+
+        turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
+        turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
 
         double output = pid.tick(turretTargetAngle, turretCurrentAngle, dt);
         output = Math.max(OFF, Math.min(ON, output));
