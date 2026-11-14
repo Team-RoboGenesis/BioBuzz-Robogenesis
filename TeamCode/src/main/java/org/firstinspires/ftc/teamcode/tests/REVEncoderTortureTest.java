@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.tests;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Gamepad;
 
 
 @TeleOp(name = "REV encoder torture test")
@@ -19,9 +20,9 @@ public class REVEncoderTortureTest extends OpMode {
 
     @Override
     public void init() {
-        throughBoreEncoder = hardwareMap.get(DcMotor.class, "encoderOne");
-        throughBoreEncoderTheSecond = hardwareMap.get(DcMotor.class, "encoderTwo");
-        throughBoreEncoderTheThird = hardwareMap.get(DcMotor.class, "encoderThree");
+        throughBoreEncoder = hardwareMap.get(DcMotor.class, "rightBack");
+        throughBoreEncoderTheSecond = hardwareMap.get(DcMotor.class, "leftBack");
+        throughBoreEncoderTheThird = hardwareMap.get(DcMotor.class, "leftFront");
         throughBoreEncoder.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         throughBoreEncoderTheSecond.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         throughBoreEncoderTheThird.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -35,7 +36,6 @@ public class REVEncoderTortureTest extends OpMode {
 
     @Override
     public void loop() {
-
         int currentTicks = throughBoreEncoder.getCurrentPosition();
         int currentTicksTwo = throughBoreEncoderTheSecond.getCurrentPosition();
         int currentTicksThree = throughBoreEncoderTheThird.getCurrentPosition();
@@ -45,6 +45,5 @@ public class REVEncoderTortureTest extends OpMode {
         telemetry.addData("Encoder 2 ticks", currentTicksTwo);
         telemetry.addData("Encoder 3 ticks", currentTicksThree);
         telemetry.update();
-
     }
 }

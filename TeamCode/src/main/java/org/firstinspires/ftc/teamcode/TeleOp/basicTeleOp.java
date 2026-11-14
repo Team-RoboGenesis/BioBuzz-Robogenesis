@@ -2,6 +2,9 @@ package org.firstinspires.ftc.teamcode.TeleOp;
 
 import android.graphics.Color;
 
+import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -14,52 +17,12 @@ import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-
-class GateSensor {
-    private DistanceSensor distanceSensor;
-    private double threshold;
-    private boolean last;
-    private boolean entrance;
-    private double color;
-    private NormalizedColorSensor colorSensor;
-
-    public void init(HardwareMap hwMap, String deviceName, double threshold) {
-        this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
-        this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
-        this.threshold = threshold;
-        this.last = false;
-        this.entrance = deviceName.toLowerCase().contains("in"); // kinda dumb but it removes an argument
-    }
-
-    public int getData() {
-        double distance = this.distanceSensor.getDistance(DistanceUnit.CM);
-        boolean current = distance < this.threshold;
-
-        if (current != this.last) {
-            this.last = current;
-
-            if (this.entrance && current) {
-                return 1;
-            } else if (!current) {
-                return -1;
-            }
-        }
-
-        return 0;
-    }
-
-    public double getColor() {
-        NormalizedRGBA colors = this.colorSensor.getNormalizedColors();
-
-        float[] hsvValues = new float[3];
-        Color.colorToHSV(colors.toColor(), hsvValues);
-        double hue = hsvValues[0];
-        return hue / 360;
-    }
-}
+import java.util.Map;
 
 @TeleOp(name = "basic TeleOp")
 public class basicTeleOp extends OpMode {
@@ -69,13 +32,25 @@ public class basicTeleOp extends OpMode {
     private final double BLUE = 0.611;
     private final double YELLOW = 0.388;
     private final double ON = 1;
-    private final double INTAKEPOWER = 0.8;
+    private final double INTAKEPOWER = 1;  // TODO: get real value
+    private final double MOTORTICKSPERORTATION = 28;
+    private final double SERVOTICKSPERORTATION = 4096;
+    private final double shootingRPM = 100; // TODO: get real value
+    private final double armDownPos = 1; // TODO: get real value
+    private final double armUpPos = 0; // TODO: get real value
+    private final double topTrasferServoSpeed = 0; // TODO: get real value
+    private final double bottomTrasferServoSpeed = 0; // TODO: get real value
 
     // config
-    private final double distInThreshold = 10;
-    private final double distOutThreshold = 10;
+    private final double distInThreshold = 10; // TODO: get real value
+    private final double distOutThreshold = 10; // TODO: get real value
+    private final double upperTurretLimit = 360; // TODO: get real value
+    private final double lowerTurretLimit = 0; // TODO: get real value
 
     // device setup
+    private PIDF pidf;
+    private PIDF flywheelPid;
+    private MecanumDrive drive = null;
     private DcMotor rightFront = null;
     private DcMotor leftFront = null;
     private DcMotor rightBack = null;
@@ -83,12 +58,12 @@ public class basicTeleOp extends OpMode {
     private DcMotor intake = null;
     private DcMotor turretFlywheel = null;
     private CRServo turretBase = null;
-    private CRServo flowerOuttake1 = null;
-    private CRServo flowerOuttake2 = null;
-    private CRServo transferServo1 = null;
-    private CRServo transferServo2 = null;
-    private CRServo transferServo3 = null;
-    private CRServo transferServo4 = null;
+    private Servo flowerIntake1 = null;
+    private Servo flowerIntake2 = null;
+    private CRServo topRightTransferServo = null;
+    private CRServo topLeftTransferServo = null;
+    private CRServo bottomRightTransferServo = null;
+    private CRServo bottomLeftTransferServo = null;
     private GateSensor distIn;
     private GateSensor distOut;
     private GateSensor pollenIn;
@@ -98,7 +73,144 @@ public class basicTeleOp extends OpMode {
     private List<GateSensor> distanceSensors = new ArrayList<>();
 
     // starting values
+    private List<Double> closest = new ArrayList<>();
+    private Map<Double, List<Double>> points = new HashMap<>();
     private boolean lastAPress = false;
+    private double targetRPM = 0;
+    private double targetTicksPerMs = 0;
+    private double lastTime = System.nanoTime();
+    private double currentTime = 0;
+    private double motorCurrentTicksPerMs = 0;
+    private double motorLastTicks = 0;
+    private double motorCurrentTicks = 0;
+    private double turretCurrentAngle = 0;
+    private double servoLastTicks = 0;
+    private double servoCurrentTicks = 0;
+    private double turretLastAngle = 0;
+    private double turretTargetAngle = 0;
+
+    class GateSensor {
+        private DistanceSensor distanceSensor;
+        private double threshold;
+        private boolean last;
+        private boolean entrance;
+        private NormalizedColorSensor colorSensor;
+        private boolean color;
+
+        public GateSensor(HardwareMap hwMap, String deviceName, double threshold, boolean color) {
+            this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
+            this.color = color;
+            if (color) {
+                this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
+            }
+            this.threshold = threshold;
+            this.last = false;
+            this.entrance = deviceName.toLowerCase().contains("in"); // kinda dumb but it removes an argument
+        }
+
+        public int getData() {
+            double distance = this.distanceSensor.getDistance(DistanceUnit.CM);
+            boolean current = distance < this.threshold;
+
+            if (current != this.last) {
+                this.last = current;
+
+                if (this.entrance && current) {
+                    return 1;
+                } else if (!current) {
+                    return -1;
+                }
+            }
+
+            return 0;
+        }
+
+        public double getColor() {
+            if (!color) {
+                return 0;
+            }
+
+            NormalizedRGBA colors = this.colorSensor.getNormalizedColors();
+            // get colors with colors.red, green and blue
+
+            float[] hsvValues = new float[3];
+            Color.colorToHSV(colors.toColor(), hsvValues);
+
+            double hue = hsvValues[0];
+            return hue / 360;
+        }
+    }
+
+    class PIDF {
+        public double p, i, d, f;
+        private double integral;
+        private double previousError;
+        private boolean initialized = false;
+
+        private PIDF(double p, double i, double d, double f) {
+            // fallback for if you don't supply initialI
+            this(p, i, d, f, 0.0);
+        }
+        private PIDF(double p, double i, double d, double f, double initialI) {
+            // initialize variables
+            this.p = p;
+            this.i = i;
+            this.d = d;
+            this.f = f;
+            this.integral = initialI;
+            this.previousError = 0.0;
+        }
+        private double tick(double target, double current, double dt) {
+            // tick one timestep
+            double error = target - current;
+
+            if (!initialized) {
+                previousError = error;
+                initialized = true;
+            }
+
+            // Integral term
+            integral += error * dt;
+
+            // Derivative term
+            double derivative = dt > 0
+                    ? (error - previousError) / dt
+                    : 0.0;
+
+            // Feedforward term
+            double feedforward = f * target;
+
+            // PIDF output
+            double output = p * error +
+                    i * integral +
+                    d * derivative +
+                    feedforward;
+
+            // Store error for the next tick
+            previousError = error;
+
+            return output;
+        }
+    }
+
+    public List<Double> getClosestPoint(double value) {
+        List<Double> xValues = new ArrayList<>(points.keySet());
+        if (xValues.isEmpty()) {
+            throw new IllegalArgumentException("List cannot be empty");
+        }
+
+        double closest = xValues.get(0);
+        double minDiff = Math.abs((long) closest - value); // Use long to prevent int overflow
+
+        for (double num : xValues) {
+            double diff = Math.abs(num - value);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = num;
+            }
+        }
+        return points.get(closest);
+    }
 
     @Override
     public void init() {
@@ -116,22 +228,46 @@ public class basicTeleOp extends OpMode {
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
+        // Initialize MecanumDrive
+        drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90))); // TODO: get real values
+
         // make servos
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
-        flowerOuttake1 = hardwareMap.get(CRServo.class, "flowerOuttake1");
-        flowerOuttake2 = hardwareMap.get(CRServo.class, "flowerOuttake2");
-        transferServo1 = hardwareMap.get(CRServo.class, "transferServo1");
-        transferServo2 = hardwareMap.get(CRServo.class, "transferServo2");
-        transferServo3 = hardwareMap.get(CRServo.class, "transferServo3");
-        transferServo4 = hardwareMap.get(CRServo.class, "transferServo4");
+        flowerIntake1 = hardwareMap.get(Servo.class, "flowerIntake1");
+        flowerIntake2 = hardwareMap.get(Servo.class, "flowerIntake2");
+        topRightTransferServo = hardwareMap.get(CRServo.class, "topRightTransferServo");
+        topLeftTransferServo = hardwareMap.get(CRServo.class, "topLeftTransferServo");
+        bottomRightTransferServo = hardwareMap.get(CRServo.class, "bottomRightTransferServo");
+        bottomLeftTransferServo = hardwareMap.get(CRServo.class, "bottomLeftTransferServo");
 
         // make sensors
-        distIn = new GateSensor();
-        distOut = new GateSensor();
-        distIn.init(hardwareMap, "dist in", distInThreshold);
-        distOut.init(hardwareMap,"dist out", distOutThreshold);
+        distIn = new GateSensor(hardwareMap, "distIn", distInThreshold, true);
+        distOut = new GateSensor(hardwareMap,"distOut", distOutThreshold, false);
         distanceSensors.add(distIn);
         distanceSensors.add(distOut);
+
+        // make PIDF
+        double p = 0;
+        double i = 0;
+        double d = 0;
+        double f = 0;
+        double initialI = 0;
+        pidf = new PIDF(p, i, d, f, initialI);
+
+        p = 0;
+        i = 0;
+        d = 0;
+        initialI = 0;
+        flywheelPid = new PIDF(p, i, d, 0, initialI);
+
+        // make hive centers
+        // TODO: add real values
+        double leftHiveX = 30, leftHiveY = 0;
+        double rightHiveX = -30, rightHiveY = 0;
+
+        points.put(leftHiveX, List.of(leftHiveX, leftHiveY));
+        points.put(rightHiveX, List.of(rightHiveX, rightHiveY));
+
 
         // make LED's
         leds.add(hardwareMap.get(Servo.class, "led1"));
@@ -168,9 +304,41 @@ public class basicTeleOp extends OpMode {
         // element check
         if (elements.size() == 4) {
             intake.setPower(OFF);
+//            flowerIntake1.setPosition(armUpPos);
+//            flowerIntake2.setPosition(armUpPos);
         } else if (elements.size() > 4) {
             // TODO: launch excess
+            targetRPM = shootingRPM;
         }
+
+        // Read pose
+        Pose2d poseEstimate = drive.localizer.getPose();
+
+        // Create a vector from the gamepad x/y inputs
+        // Then, rotate that vector by the inverse of that heading
+        Vector2d input = poseEstimate.heading.inverse().times(
+                new Vector2d(
+                        -gamepad1.left_stick_y,
+                        -gamepad1.left_stick_x
+                )
+        );
+
+        // Pass in the rotated input + right stick value for rotation
+        // Rotation is not part of the rotated input thus must be passed in separately
+        drive.setDrivePowers(
+                new PoseVelocity2d(
+                        input,
+                        -gamepad1.right_stick_x
+                )
+        );
+
+        drive.updatePoseEstimate();
+
+        // Print pose to telemetry
+        telemetry.addData("x", poseEstimate.position.x);
+        telemetry.addData("y", poseEstimate.position.y);
+        telemetry.addData("heading", Math.toDegrees(poseEstimate.heading.toDouble()));
+        telemetry.update();
 
         // button mapping
         // basic drivetrain setup
@@ -198,8 +366,52 @@ public class basicTeleOp extends OpMode {
         // align & launch
         if (gamepad2.b) {
             // TODO: align & launch
+            targetRPM = shootingRPM;
+            topRightTransferServo.setPower(topTrasferServoSpeed);
+            topLeftTransferServo.setPower(topTrasferServoSpeed);
+            bottomRightTransferServo.setPower(bottomTrasferServoSpeed);
+            bottomLeftTransferServo.setPower(bottomTrasferServoSpeed);
+        } else if (gamepad2.x) {
+            targetRPM = OFF;
+        } else if (gamepad2.dpad_down) {
+            flowerIntake1.setPosition(armDownPos);
+            flowerIntake2.setPosition(armDownPos);
+        } else if (gamepad2.dpad_up) {
+            flowerIntake1.setPosition(armUpPos);
+            flowerIntake2.setPosition(armUpPos);
         }
 
-        // TODO: add PIDF regulation for turretFlywheel
+        // tick PIDF
+        targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
+
+        closest = getClosestPoint(poseEstimate.position.x); // get closest hive position based on X position
+        double goalY = closest.get(0);
+        double goalX = closest.get(1);
+
+        turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
+        turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
+
+        currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
+        double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
+        dt = Math.max(0.000001, dt);
+
+        motorCurrentTicks = turretFlywheel.getCurrentPosition();
+        servoCurrentTicks = leftBack.getCurrentPosition(); // TODO: get servo-tied encoder here (will be a motor encoder)
+
+        motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
+        turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
+
+        double output = pidf.tick(targetTicksPerMs, motorCurrentTicksPerMs, dt);
+        output = Math.max(OFF, Math.min(ON, output));
+        turretFlywheel.setPower(output);
+
+        output = flywheelPid.tick(turretTargetAngle, turretCurrentAngle, dt);
+        output = Math.max(OFF, Math.min(ON, output));
+        turretBase.setPower(output);
+
+        lastTime = currentTime;
+        motorLastTicks = motorCurrentTicks;
+        turretLastAngle = turretCurrentAngle;
+        servoLastTicks = servoCurrentTicks;
     }
 }
