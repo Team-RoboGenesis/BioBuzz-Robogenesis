@@ -126,6 +126,7 @@ public class PIDFFlywheelTuner extends OpMode {
                     .map(String::valueOf)
                     .collect(Collectors.joining(","));
             fileUtil.overwriteFromIndex(RPMString + "\n" + timeString, 0);
+
         }
         telemetry.addData("target RPM: ", targetRPM);
         // tick PIDF
