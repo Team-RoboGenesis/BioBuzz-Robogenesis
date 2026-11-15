@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +24,7 @@ public class intakeTest extends OpMode {
     private double P = 0.015;
     private double I = 0;
     private double D = 0;
-    private double F = 0.425;
+    private double F = 0.422;
     private double initalI = 0;
     private final double MOTORTICKSPERORTATION = 28;
 
@@ -38,16 +39,21 @@ public class intakeTest extends OpMode {
     private double motorLastTicks = 0;
     private double targetTicksPerMs = 1000;
     private double lastTime = System.nanoTime();
-    private double startingTime = System.nanoTime() / 1_000_000;
-    private double currentTime = 0;
+    private double startingTime = System.nanoTime() / 1_000_000_000;
+    private double currentTime = System.nanoTime() + 10_000;
     private List<Double> RPMs = new ArrayList<>();
+    private List<Double> motorPowers = new ArrayList<>();
+    private List<Double> voltages = new ArrayList<>();
+    private List<Double> targetRPMs = new ArrayList<>();
     private List<Double> times = new ArrayList<>();
+    private List<List<Double>> data = new ArrayList<>();
     private boolean dataCollection = true;
     private double currentSecond = 0;
 
     // devices and PIDF
     private PIDF pidf;
     private DcMotorEx turretFlywheel;
+    VoltageSensor voltageSensor;
 
     class PIDF {
         public double p, i, d, f;
@@ -118,8 +124,18 @@ public class intakeTest extends OpMode {
         turretFlywheel.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         turretFlywheel.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         turretFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
 
         fileUtil.init(hardwareMap.appContext, "p 0.015");
+
+        // data collection list setup
+        data.add(times);
+        data.add(targetRPMs);
+        data.add(RPMs);
+        data.add(motorPowers);
+        data.add(voltages);
+
+
 
         // finish init
         telemetry.addLine("ready to start!");
@@ -146,13 +162,13 @@ public class intakeTest extends OpMode {
             targetRPM = 4000;
         } else if (gamepad1.options && dataCollection) {
             dataCollection = false;
-            String RPMString = RPMs.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.joining(","));
-            String timeString = times.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.joining(","));
-            fileUtil.overwriteFromIndex(RPMString + "\n" + timeString, 0);
+            String dataString = "";
+            for (List<Double> point : data) {
+                dataString += "\n" + point.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+            }
+            fileUtil.overwriteFromIndex(dataString, 0);
             telemetry.addLine("loaded file");
             telemetry.update();
             try {
@@ -184,8 +200,10 @@ public class intakeTest extends OpMode {
 
         if (dataCollection) {
             RPMs.add(RPM);
-            currentSecond = currentTime / 1_000_000_000 - startingTime;
-            times.add(currentSecond);
+            motorPowers.add(output);
+            voltages.add(voltageSensor.getVoltage());
+            targetRPMs.add(targetRPM);
+            times.add(currentTime / 1_000_000_000 - startingTime);
         }
 
         lastTime = currentTime;
