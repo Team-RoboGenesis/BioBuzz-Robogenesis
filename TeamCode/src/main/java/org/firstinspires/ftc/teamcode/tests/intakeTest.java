@@ -24,7 +24,7 @@ public class intakeTest extends OpMode {
     private double P = 0.015;
     private double I = 0;
     private double D = 0;
-    private double F = 0.422;
+    private double F = 0.416;
     private double initalI = 0;
     private final double MOTORTICKSPERORTATION = 28;
 
