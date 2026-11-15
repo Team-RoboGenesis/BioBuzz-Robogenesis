@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.tests;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
@@ -13,12 +14,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@TeleOp(name = "PIDF test")
+@TeleOp(name = "PIDF turret tuner")
 public class PIDFTurretTuner extends OpMode {
     // config
-    private double P = 1;
-    private double I = 1;
-    private double D = 1;
+    private double P = 0.05;
+    private double I = 0;
+    private double D = 0;
     private double initalI = 0;
     private final double SERVOTICKSPERORTATION = 4096;
     private final double lowerTurretLimit = 0;
@@ -43,7 +44,7 @@ public class PIDFTurretTuner extends OpMode {
 
     // devices and PIDF
     private PIDF pid;
-    private DcMotor turretServo;
+    private CRServo turretServo;
     private DcMotor rightFront = null;
 
     class PIDF {
@@ -119,14 +120,13 @@ public class PIDFTurretTuner extends OpMode {
         // PIDF setup
         pid = new PIDF(P, I, D, initalI);
 
-        drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90))); // TODO: get real values
+        drive = new MecanumDrive(hardwareMap, new Pose2d(10, -53, Math.toRadians(90))); // TODO: get real values, revert x to 0
 
         rightFront = hardwareMap.get(DcMotor.class, "rightFront");
         rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
 
         // device setup
-        turretServo = hardwareMap.get(DcMotor.class, "flywheel");
-        turretServo.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turretServo = hardwareMap.get(CRServo.class, "turretBase");
 
         // TODO: add real values
         double leftHiveX = 30, leftHiveY = 0;
@@ -152,16 +152,21 @@ public class PIDFTurretTuner extends OpMode {
 
         turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
 
-        closest = getClosestPoint(poseEstimate.position.x); // get closest hive position based on X position
-        double goalY = closest.get(0);
-        double goalX = closest.get(1);
+        closest = getClosestPoint(10); // get closest hive position based on X position TODO: replace with poseEstimate.position.x
+        double goalX = 0; // TODO: REPLACE WITH closest.get(0)
+        double goalY = 30; // TODO: REPLACE WITH closest.get(1)
 
-        turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
+        turretTargetAngle = Math.toDegrees(Math.atan2(40 - goalY, 40 - goalX)); // TODO: replace with poseEstimate.position.x
         turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
+        telemetry.addData("target turret angle", turretTargetAngle);
+        telemetry.addData("current turret angle", turretCurrentAngle);
 
         double output = pid.tick(turretTargetAngle, turretCurrentAngle, dt);
         output = Math.max(OFF, Math.min(ON, output));
         turretServo.setPower(output);
+
+        telemetry.addData("power", output);
+        telemetry.update();
 
 
         lastTime = currentTime;

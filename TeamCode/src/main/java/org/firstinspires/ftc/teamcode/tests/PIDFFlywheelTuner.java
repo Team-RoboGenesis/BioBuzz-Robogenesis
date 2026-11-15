@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.tests;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import java.util.ArrayList;
@@ -12,10 +13,10 @@ import java.util.stream.Collectors;
 @TeleOp(name = "PIDF flywheel tuner")
 public class PIDFFlywheelTuner extends OpMode {
     // config
-    private double P = 1.246;
-    private double I = 0.0846;
+    private double P = 0.015;
+    private double I = 0;
     private double D = 0;
-    private double F = 5.46;
+    private double F = 0.46635714285;
     private double initalI = 0;
     private final double MOTORTICKSPERORTATION = 28;
 
@@ -30,15 +31,16 @@ public class PIDFFlywheelTuner extends OpMode {
     private double motorLastTicks = 0;
     private double targetTicksPerMs = 1000;
     private double lastTime = System.nanoTime();
-    private double startingTime = System.nanoTime() / 1_000_000;
-    private double currentTime = 0;
+    private double startingTime = System.nanoTime() / 1_000_000_000;
+    private double currentTime = System.nanoTime();
     private List<Double> RPMs = new ArrayList<>();
     private List<Double> times = new ArrayList<>();
-    private boolean dataCollection = true;
+    private boolean dataCollection = false;
+    private double currentSecond = 0;
 
     // devices and PIDF
     private PIDF pidf;
-    private DcMotor turretFlywheel;
+    private DcMotorEx turretFlywheel;
 
     class PIDF {
         public double p, i, d, f;
@@ -97,9 +99,9 @@ public class PIDFFlywheelTuner extends OpMode {
         pidf = new PIDF(P, I, D, F, initalI);
 
         // device setup
-        turretFlywheel = hardwareMap.get(DcMotor.class, "flywheel");
-        turretFlywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        turretFlywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        turretFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        turretFlywheel.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        turretFlywheel.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         turretFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
 
         fileUtil.init(hardwareMap.appContext, "log");
@@ -113,8 +115,10 @@ public class PIDFFlywheelTuner extends OpMode {
     public void loop() {
         if (gamepad1.a) {
             targetRPM = 3000;
+            dataCollection = true;
         } else if (gamepad1.b) {
             targetRPM = 0;
+            dataCollection = false;
         } else if (gamepad1.right_bumper) {
             targetRPM = 800;
         } else if (gamepad1.dpad_up && dataCollection) {
@@ -126,9 +130,15 @@ public class PIDFFlywheelTuner extends OpMode {
                     .map(String::valueOf)
                     .collect(Collectors.joining(","));
             fileUtil.overwriteFromIndex(RPMString + "\n" + timeString, 0);
-
+            telemetry.addLine("loaded file");
+            telemetry.update();
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
-        telemetry.addData("target RPM: ", targetRPM);
+        telemetry.addData("target RPM", targetRPM);
         // tick PIDF
         targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
 
@@ -138,19 +148,21 @@ public class PIDFFlywheelTuner extends OpMode {
 
         motorCurrentTicks = turretFlywheel.getCurrentPosition();
 
-        motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
+        motorCurrentTicksPerMs = turretFlywheel.getVelocity() / 1_000;
 
         double RPM = Math.floor(motorCurrentTicksPerMs / MOTORTICKSPERORTATION * 60_000);
-        telemetry.addData("current RPM: ", RPM);
+        telemetry.addData("current RPM", RPM);
 
         double output = pidf.tick(targetTicksPerMs, motorCurrentTicksPerMs, dt);
-        output = Math.max(-ON, Math.min(ON, output));
-        telemetry.addData("power: ", output);
+        output = Math.max(OFF, Math.min(ON, output));
+        telemetry.addData("power", output);
         turretFlywheel.setPower(output);
 
         if (dataCollection) {
             RPMs.add(RPM);
-            times.add(currentTime / 1_000_000 - startingTime);
+            currentSecond = currentTime / 1_000_000_000 - startingTime;
+            times.add(currentSecond);
+            telemetry.addData("current second", currentSecond);
         }
 
         lastTime = currentTime;

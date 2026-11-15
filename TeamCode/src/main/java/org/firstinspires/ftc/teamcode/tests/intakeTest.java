@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 
@@ -19,10 +20,10 @@ public class intakeTest extends OpMode {
     private CRServo rightTransferServo = null;
     private CRServo leftTransferServo = null;
     // config
-    private double P = 1.246;
-    private double I = 0.0846;
+    private double P = 0.015;
+    private double I = 0;
     private double D = 0;
-    private double F = 5.46;
+    private double F = 0.425;
     private double initalI = 0;
     private final double MOTORTICKSPERORTATION = 28;
 
@@ -42,10 +43,11 @@ public class intakeTest extends OpMode {
     private List<Double> RPMs = new ArrayList<>();
     private List<Double> times = new ArrayList<>();
     private boolean dataCollection = true;
+    private double currentSecond = 0;
 
     // devices and PIDF
     private PIDF pidf;
-    private DcMotor turretFlywheel;
+    private DcMotorEx turretFlywheel;
 
     class PIDF {
         public double p, i, d, f;
@@ -112,10 +114,12 @@ public class intakeTest extends OpMode {
         pidf = new PIDF(P, I, D, F, initalI);
 
         // device setup
-        turretFlywheel = hardwareMap.get(DcMotor.class, "flywheel");
-        turretFlywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        turretFlywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        turretFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        turretFlywheel.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        turretFlywheel.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         turretFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        fileUtil.init(hardwareMap.appContext, "p 0.015");
 
         // finish init
         telemetry.addLine("ready to start!");
@@ -135,11 +139,11 @@ public class intakeTest extends OpMode {
             rightTransferServo.setPower(0);
             leftTransferServo.setPower(0);
         } else if (gamepad1.right_bumper) {
-            targetRPM = 4000;
+            targetRPM = 3000;
         } else if (gamepad1.left_bumper) {
             targetRPM = 0;
         } else if (gamepad1.right_stick_button) {
-            targetRPM = 6000;
+            targetRPM = 4000;
         } else if (gamepad1.options && dataCollection) {
             dataCollection = false;
             String RPMString = RPMs.stream()
@@ -149,8 +153,15 @@ public class intakeTest extends OpMode {
                     .map(String::valueOf)
                     .collect(Collectors.joining(","));
             fileUtil.overwriteFromIndex(RPMString + "\n" + timeString, 0);
+            telemetry.addLine("loaded file");
+            telemetry.update();
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
-        targetRPM += -gamepad1.left_stick_y;
+        targetRPM -= gamepad1.left_stick_y;
         telemetry.addData("target RPM: ", targetRPM);
         // tick PIDF
         targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
@@ -161,7 +172,7 @@ public class intakeTest extends OpMode {
 
         motorCurrentTicks = turretFlywheel.getCurrentPosition();
 
-        motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
+        motorCurrentTicksPerMs = turretFlywheel.getVelocity() / 1_000;
 
         double RPM = Math.floor(motorCurrentTicksPerMs / MOTORTICKSPERORTATION * 60_000);
         telemetry.addData("current RPM: ", RPM);
@@ -173,7 +184,8 @@ public class intakeTest extends OpMode {
 
         if (dataCollection) {
             RPMs.add(RPM);
-            times.add(currentTime / 1_000_000 - startingTime);
+            currentSecond = currentTime / 1_000_000_000 - startingTime;
+            times.add(currentSecond);
         }
 
         lastTime = currentTime;
