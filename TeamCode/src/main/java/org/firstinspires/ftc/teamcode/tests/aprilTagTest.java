@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.tests;
 import android.annotation.SuppressLint;
 
+import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 //import com.qualcomm.robotcore.eventloop.opmode.TelemetryOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
@@ -13,6 +15,7 @@ import java.util.List;
 @TeleOp(name = "AprilTag GlobalShutter Tracking")
 public class aprilTagTest extends LinearOpMode {
     //@ObjectOverride
+    private MecanumDrive drive;
     @SuppressLint("DefaultLocale")
     @Override
     public void runOpMode() {
@@ -25,6 +28,7 @@ public class aprilTagTest extends LinearOpMode {
                 .setCamera(hardwareMap.get(WebcamName.class, "cam 1"))
                 .addProcessor(aprilTag)
                 .build();
+        drive = new MecanumDrive(hardwareMap,new Pose2d(0,-53, Math.toRadians(90)));//TODO: GET REAL VALUES
 
         waitForStart();
 
@@ -51,6 +55,8 @@ public class aprilTagTest extends LinearOpMode {
 
                     telemetry.addData("Relative Angles", "Yaw: %6.2f, Pitch: %6.2f, Roll: %6.2f (deg)",
                             detection.ftcPose.yaw, detection.ftcPose.pitch, detection.ftcPose.roll);
+                    Pose2d poseEstimate = drive.localizer.getPose();
+                    
 
                 } else {
                     telemetry.addLine(String.format("== (ID %d) Unknown", detection.id));
