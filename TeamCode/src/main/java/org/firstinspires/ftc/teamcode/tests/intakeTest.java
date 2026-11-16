@@ -24,7 +24,7 @@ public class intakeTest extends OpMode {
     private double P = 0.015;
     private double I = 0;
     private double D = 0;
-    private double F = 0.416;
+    private double F = 0.434;
     private double initalI = 0;
     private final double MOTORTICKSPERORTATION = 28;
 
@@ -204,6 +204,7 @@ public class intakeTest extends OpMode {
             voltages.add(voltageSensor.getVoltage());
             targetRPMs.add(targetRPM);
             times.add(currentTime / 1_000_000_000 - startingTime);
+            telemetry.addData("time", currentTime / 1_000_000_000 - startingTime);
         }
 
         lastTime = currentTime;
