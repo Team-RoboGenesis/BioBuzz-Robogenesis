@@ -46,6 +46,8 @@ public class intakeTest extends OpMode {
     private List<List<Double>> data = new ArrayList<>();
     private boolean dataCollection = true;
     private double currentSecond = 0;
+    private double right = 0;
+    private double left = 0;
 
     // devices and PIDF
     private PIDF pidf;
@@ -175,7 +177,13 @@ public class intakeTest extends OpMode {
             }
         }
         targetRPM -= gamepad1.left_stick_y;
+        right -= gamepad1.right_stick_y / 500;
+        left += gamepad1.right_stick_x / 500;
+
         telemetry.addData("target RPM: ", targetRPM);
+
+        rightFlowerIntake.setPosition(right);
+        leftFlowerIntake.setPosition(left);
 
         // tick PIDF
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
