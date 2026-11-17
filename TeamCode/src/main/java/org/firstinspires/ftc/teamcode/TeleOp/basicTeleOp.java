@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -32,30 +33,30 @@ public class basicTeleOp extends OpMode {
     private final double BLUE = 0.611;
     private final double YELLOW = 0.388;
     private final double ON = 1;
-    private final double INTAKEPOWER = 1;  // TODO: get real value
+    private final double INTAKEPOWER = 1;
     private final double MOTORTICKSPERORTATION = 28;
     private final double SERVOTICKSPERORTATION = 4096;
-    private final double shootingRPM = 100; // TODO: get real value
+    private final double shootingRPM = 4000; // TODO: get real value
     private final double armDownPos = 1; // TODO: get real value
     private final double armUpPos = 0; // TODO: get real value
-    private final double trasferServoSpeed = 0; // TODO: get real value
+    private final double trasferServoSpeed = 1;
 
     // config
     private final double distInThreshold = 10; // TODO: get real value
     private final double distOutThreshold = 10; // TODO: get real value
-    private final double upperTurretLimit = 360; // TODO: get real value
-    private final double lowerTurretLimit = 0; // TODO: get real value
+    private final double upperTurretLimit = 360;
+    private final double lowerTurretLimit = 0;
 
     // device setup
     private PIDF pidf;
     private PIDF flywheelPid;
     private MecanumDrive drive = null;
-    private DcMotor rightFront = null;
+    private DcMotorEx rightFront = null;
     private DcMotor leftFront = null;
     private DcMotor rightBack = null;
     private DcMotor leftBack = null;
     private DcMotor intake = null;
-    private DcMotor turretFlywheel = null;
+    private DcMotorEx turretFlywheel = null;
     private CRServo turretBase = null;
     private Servo rightFlowerIntake = null;
     private Servo leftFlowerIntake = null;
@@ -76,13 +77,11 @@ public class basicTeleOp extends OpMode {
     private double lastTime = System.nanoTime();
     private double currentTime = System.nanoTime();
     private double motorCurrentTicksPerMs = 0;
-    private double motorLastTicks = 0;
-    private double motorCurrentTicks = 0;
+    private double motorCurrentRPM = 0;
     private double turretCurrentAngle = 0;
-    private double servoLastTicks = 0;
-    private double servoCurrentTicks = 0;
     private double turretLastAngle = 0;
     private double turretTargetAngle = 0;
+    private boolean flywheelPidfEnabled = false;
 
     class GateSensor {
         private DistanceSensor distanceSensor;
@@ -211,13 +210,14 @@ public class basicTeleOp extends OpMode {
     public void init() {
         // make motors
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
-        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
+        rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
         rightBack = hardwareMap.get(DcMotor.class, "rightBack");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
         intake = hardwareMap.get(DcMotor.class, "intake");
-        turretFlywheel = hardwareMap.get(DcMotor.class, "flywheel");
+        turretFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
 
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        turretFlywheel.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
         rightBack.setDirection(DcMotorSimple.Direction.FORWARD);
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -358,14 +358,18 @@ public class basicTeleOp extends OpMode {
             lastAPress = gamepad2.a;
         }
 
-        // align & launch
-        if (gamepad2.b) {
-            // TODO: align & launch
+        // other inputs
+        if (gamepad2.right_bumper) {
             targetRPM = shootingRPM;
+            flywheelPidfEnabled = true;
+        } else if (gamepad2.y) {
             rightTransferServo.setPower(trasferServoSpeed);
-            leftTransferServo.setPower(trasferServoSpeed);
+            leftTransferServo.setPower(-trasferServoSpeed);
+        } else if (gamepad2.left_bumper) {
+            flywheelPidfEnabled = false;
         } else if (gamepad2.x) {
-            targetRPM = OFF;
+            rightTransferServo.setPower(OFF);
+            leftTransferServo.setPower(OFF);
         } else if (gamepad2.dpad_down) {
             rightFlowerIntake.setPosition(armDownPos);
             leftFlowerIntake.setPosition(armDownPos);
@@ -375,8 +379,6 @@ public class basicTeleOp extends OpMode {
         }
 
         // tick PIDF
-        targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
-
         closest = getClosestPoint(poseEstimate.position.x); // get closest hive position based on X position
         double goalY = closest.get(0);
         double goalX = closest.get(1);
@@ -386,25 +388,23 @@ public class basicTeleOp extends OpMode {
 
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
-        dt = Math.max(0.000001, dt);
+        dt = Math.max(0.000001, dt); // avoid division by 0
 
-        motorCurrentTicks = turretFlywheel.getCurrentPosition();
-        servoCurrentTicks = rightFront.getCurrentPosition();
+        motorCurrentRPM = turretFlywheel.getVelocity() / MOTORTICKSPERORTATION * 60.0;
+        turretCurrentAngle = turretLastAngle + (rightFront.getVelocity() * (dt / 1_000.0) / SERVOTICKSPERORTATION) * 360.0;
 
-        motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
-        turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
+        double servoPower = pidf.tick(turretCurrentAngle, turretCurrentAngle, dt);
+        servoPower = Math.max(OFF, Math.min(ON, servoPower));
+        turretFlywheel.setPower(servoPower);
 
-        double output = pidf.tick(targetTicksPerMs, motorCurrentTicksPerMs, dt);
-        output = Math.max(OFF, Math.min(ON, output));
-        turretFlywheel.setPower(output);
-
-        output = flywheelPid.tick(turretTargetAngle, turretCurrentAngle, dt);
-        output = Math.max(OFF, Math.min(ON, output));
-        turretBase.setPower(output);
+        if (flywheelPidfEnabled) {
+            double motorPower = pidf.tick(targetRPM, motorCurrentRPM, dt);
+            motorPower = Math.max(OFF, Math.min(ON, motorPower));
+            turretFlywheel.setPower(motorPower);
+        } else {
+            turretFlywheel.setPower(OFF);
+        }
 
         lastTime = currentTime;
-        motorLastTicks = motorCurrentTicks;
-        turretLastAngle = turretCurrentAngle;
-        servoLastTicks = servoCurrentTicks;
     }
 }
