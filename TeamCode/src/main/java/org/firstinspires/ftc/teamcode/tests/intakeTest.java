@@ -115,6 +115,8 @@ public class intakeTest extends OpMode {
         rightTransferServo = hardwareMap.get(CRServo.class, "rightTransferServo");
         leftTransferServo = hardwareMap.get(CRServo.class, "leftTransferServo");
 
+        rightFlowerIntake.setDirection(Servo.Direction.REVERSE);
+
         // PIDF setup
         pidf = new PIDF(P, I, D, F, initalI);
 
@@ -179,6 +181,9 @@ public class intakeTest extends OpMode {
         targetRPM -= gamepad1.left_stick_y;
         right -= gamepad1.right_stick_y / 500;
         left += gamepad1.right_stick_x / 500;
+
+        telemetry.addData("right", right);
+        telemetry.addData("left", left);
 
         telemetry.addData("target RPM: ", targetRPM);
 

@@ -37,8 +37,8 @@ public class basicTeleOp extends OpMode {
     private final double MOTORTICKSPERORTATION = 28;
     private final double SERVOTICKSPERORTATION = 4096;
     private final double shootingRPM = 4000; // TODO: get real value
-    private final double armDownPos = 1; // TODO: get real value
-    private final double armUpPos = 0; // TODO: get real value
+    private final double armDownPos = 0.41;
+    private final double armUpPos = 0;
     private final double trasferServoSpeed = 1;
 
     // config
@@ -48,8 +48,8 @@ public class basicTeleOp extends OpMode {
     private final double lowerTurretLimit = 0;
 
     // device setup
-    private PIDF pidf;
-    private PIDF flywheelPid;
+    private PIDF flywheelPidf;
+    private PIDF turretBasePid;
     private MecanumDrive drive = null;
     private DcMotorEx rightFront = null;
     private DcMotor leftFront = null;
@@ -234,10 +234,10 @@ public class basicTeleOp extends OpMode {
         leftTransferServo = hardwareMap.get(CRServo.class, "leftTransferServo");
 
         // make sensors
-        distIn = new GateSensor(hardwareMap, "distIn", distInThreshold, true);
-        distOut = new GateSensor(hardwareMap,"distOut", distOutThreshold, false);
-        distanceSensors.add(distIn);
-        distanceSensors.add(distOut);
+//        distIn = new GateSensor(hardwareMap, "distIn", distInThreshold, true);
+//        distOut = new GateSensor(hardwareMap,"distOut", distOutThreshold, false);
+//        distanceSensors.add(distIn);
+//        distanceSensors.add(distOut);
 
         // make PIDFs
         // make flywheel PIDF
@@ -246,14 +246,14 @@ public class basicTeleOp extends OpMode {
         double d = 0;
         double f = 0;
         double initialI = 0;
-        pidf = new PIDF(p, i, d, f, initialI);
+        flywheelPidf = new PIDF(p, i, d, f, initialI);
 
         // make turret angle PID
         p = 0;
         i = 0;
         d = 0;
         initialI = 0;
-        flywheelPid = new PIDF(p, i, d, 0, initialI);
+        turretBasePid = new PIDF(p, i, d, 0, initialI);
 
         // make hive centers
         // TODO: add real values
@@ -274,37 +274,37 @@ public class basicTeleOp extends OpMode {
     @Override
     public void loop() {
         // element counting with funny class
-        for (GateSensor distSen : distanceSensors) {
-            int data = distSen.getData();
-            if (data == 1) {
-                elements.add(distSen.getColor());
-            } else if (data == -1) {
-                if (!elements.isEmpty()) {
-                    elements.remove(0);
-                }
-            }
-        }
+//        for (GateSensor distSen : distanceSensors) {
+//            int data = distSen.getData();
+//            if (data == 1) {
+//                elements.add(distSen.getColor());
+//            } else if (data == -1) {
+//                if (!elements.isEmpty()) {
+//                    elements.remove(0);
+//                }
+//            }
+//        }
 
         // led color setting
-        for (Servo led : leds) {
-            led.setPosition(OFF);
-        }
-
-        int i = 0;
-        for (double elementColor : elements) {
-            leds.get(i).setPosition(elementColor);
-            i++;
-        }
+//        for (Servo led : leds) {
+//            led.setPosition(OFF);
+//        }
+//
+//        int i = 0;
+//        for (double elementColor : elements) {
+//            leds.get(i).setPosition(elementColor);
+//            i++;
+//        }
 
         // element check
-        if (elements.size() == 4) {
-            intake.setPower(OFF);
-//            flowerIntake1.setPosition(armUpPos);
-//            flowerIntake2.setPosition(armUpPos);
-        } else if (elements.size() > 4) {
-            // TODO: launch excess
-            targetRPM = shootingRPM;
-        }
+//        if (elements.size() == 4) {
+//            intake.setPower(OFF);
+////            flowerIntake1.setPosition(armUpPos);
+////            flowerIntake2.setPosition(armUpPos);
+//        } else if (elements.size() > 4) {
+//            // TODO: launch excess
+//            targetRPM = shootingRPM;
+//        }
 
         // Read pose
         Pose2d poseEstimate = drive.localizer.getPose();
@@ -393,12 +393,12 @@ public class basicTeleOp extends OpMode {
         motorCurrentRPM = turretFlywheel.getVelocity() / MOTORTICKSPERORTATION * 60.0;
         turretCurrentAngle = turretLastAngle + (rightFront.getVelocity() * (dt / 1_000.0) / SERVOTICKSPERORTATION) * 360.0;
 
-        double servoPower = pidf.tick(turretCurrentAngle, turretCurrentAngle, dt);
+        double servoPower = flywheelPidf.tick(turretCurrentAngle, turretCurrentAngle, dt);
         servoPower = Math.max(OFF, Math.min(ON, servoPower));
         turretFlywheel.setPower(servoPower);
 
         if (flywheelPidfEnabled) {
-            double motorPower = pidf.tick(targetRPM, motorCurrentRPM, dt);
+            double motorPower = turretBasePid.tick(targetRPM, motorCurrentRPM, dt);
             motorPower = Math.max(OFF, Math.min(ON, motorPower));
             turretFlywheel.setPower(motorPower);
         } else {
