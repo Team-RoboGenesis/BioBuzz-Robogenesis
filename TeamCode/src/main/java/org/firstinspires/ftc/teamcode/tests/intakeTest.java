@@ -4,8 +4,10 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,10 +21,10 @@ public class intakeTest extends OpMode {
     private CRServo rightTransferServo = null;
     private CRServo leftTransferServo = null;
     // config
-    private double P = 1.246;
-    private double I = 0.0846;
+    private double P = 0.0005;
+    private double I = 0;
     private double D = 0;
-    private double F = 5.46;
+    private double F = 0.434;
     private double initalI = 0;
     private final double MOTORTICKSPERORTATION = 28;
 
@@ -32,20 +34,25 @@ public class intakeTest extends OpMode {
 
     // default values
     private double targetRPM = 0;
-    private double motorCurrentTicks = 0;
-    private double motorCurrentTicksPerMs = 0;
-    private double motorLastTicks = 0;
-    private double targetTicksPerMs = 1000;
+    private double motorCurrentRPM = 0;
     private double lastTime = System.nanoTime();
-    private double startingTime = System.nanoTime() / 1_000_000;
-    private double currentTime = 0;
+    private double startingTime = System.nanoTime() / 1_000_000_000;
+    private double currentTime = System.nanoTime() + 10_000;
     private List<Double> RPMs = new ArrayList<>();
+    private List<Double> motorPowers = new ArrayList<>();
+    private List<Double> voltages = new ArrayList<>();
+    private List<Double> targetRPMs = new ArrayList<>();
     private List<Double> times = new ArrayList<>();
+    private List<List<Double>> data = new ArrayList<>();
     private boolean dataCollection = true;
+    private double currentSecond = 0;
+    private double right = 0;
+    private double left = 0;
 
     // devices and PIDF
     private PIDF pidf;
-    private DcMotor turretFlywheel;
+    private DcMotorEx turretFlywheel;
+    VoltageSensor voltageSensor;
 
     class PIDF {
         public double p, i, d, f;
@@ -108,14 +115,28 @@ public class intakeTest extends OpMode {
         rightTransferServo = hardwareMap.get(CRServo.class, "rightTransferServo");
         leftTransferServo = hardwareMap.get(CRServo.class, "leftTransferServo");
 
+        rightFlowerIntake.setDirection(Servo.Direction.REVERSE);
+
         // PIDF setup
         pidf = new PIDF(P, I, D, F, initalI);
 
         // device setup
-        turretFlywheel = hardwareMap.get(DcMotor.class, "flywheel");
-        turretFlywheel.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        turretFlywheel.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        turretFlywheel = hardwareMap.get(DcMotorEx.class, "flywheel");
+        turretFlywheel.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        turretFlywheel.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
         turretFlywheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
+
+        fileUtil.init(hardwareMap.appContext, "p 0.0005");
+
+        // data collection list setup
+        data.add(times);
+        data.add(targetRPMs);
+        data.add(RPMs);
+        data.add(motorPowers);
+        data.add(voltages);
+
+
 
         // finish init
         telemetry.addLine("ready to start!");
@@ -135,49 +156,66 @@ public class intakeTest extends OpMode {
             rightTransferServo.setPower(0);
             leftTransferServo.setPower(0);
         } else if (gamepad1.right_bumper) {
-            targetRPM = 4000;
+            targetRPM = 3000;
         } else if (gamepad1.left_bumper) {
             targetRPM = 0;
         } else if (gamepad1.right_stick_button) {
-            targetRPM = 6000;
+            targetRPM = 4000;
         } else if (gamepad1.options && dataCollection) {
             dataCollection = false;
-            String RPMString = RPMs.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.joining(","));
-            String timeString = times.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.joining(","));
-            fileUtil.overwriteFromIndex(RPMString + "\n" + timeString, 0);
+            String dataString = "";
+            for (List<Double> point : data) {
+                dataString += "\n" + point.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+            }
+            fileUtil.overwriteFromIndex(dataString, 0);
+            telemetry.addLine("loaded file");
+            telemetry.update();
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
-        targetRPM += -gamepad1.left_stick_y;
-        telemetry.addData("target RPM: ", targetRPM);
-        // tick PIDF
-        targetTicksPerMs = (targetRPM) / 60_000 * MOTORTICKSPERORTATION;
+        targetRPM -= gamepad1.left_stick_y;
+        right -= gamepad1.right_stick_y / 500;
+        left += gamepad1.right_stick_x / 500;
 
+        telemetry.addData("right", right);
+        telemetry.addData("left", left);
+
+        telemetry.addData("target RPM: ", targetRPM);
+
+        rightFlowerIntake.setPosition(right);
+        leftFlowerIntake.setPosition(left);
+
+        // tick PIDF
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
 
-        motorCurrentTicks = turretFlywheel.getCurrentPosition();
+        motorCurrentRPM = turretFlywheel.getVelocity() / MOTORTICKSPERORTATION * 60.0;
 
-        motorCurrentTicksPerMs = (motorCurrentTicks - motorLastTicks) / dt;
+        telemetry.addData("current RPM", motorCurrentRPM);
 
-        double RPM = Math.floor(motorCurrentTicksPerMs / MOTORTICKSPERORTATION * 60_000);
-        telemetry.addData("current RPM: ", RPM);
+        double motorPower = pidf.tick(targetRPM, motorCurrentRPM, dt);
+        motorPower = Math.max(OFF, Math.min(ON, motorPower));
 
-        double output = pidf.tick(targetTicksPerMs, motorCurrentTicksPerMs, dt);
-        output = Math.max(-ON, Math.min(ON, output));
-        telemetry.addData("power: ", output);
-        turretFlywheel.setPower(output);
+        telemetry.addData("power", motorPower);
+        turretFlywheel.setPower(motorPower);
 
         if (dataCollection) {
-            RPMs.add(RPM);
-            times.add(currentTime / 1_000_000 - startingTime);
+            RPMs.add(motorCurrentRPM);
+            motorPowers.add(motorPower);
+            voltages.add(voltageSensor.getVoltage());
+            targetRPMs.add(targetRPM);
+            currentSecond = currentTime / 1_000_000_000 - startingTime;
+            times.add(currentSecond);
+            telemetry.addData("current second", currentSecond);
         }
 
         lastTime = currentTime;
-        motorLastTicks = motorCurrentTicks;
         telemetry.update();
     }
 }

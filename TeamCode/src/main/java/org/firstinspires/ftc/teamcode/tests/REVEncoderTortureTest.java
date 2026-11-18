@@ -19,7 +19,7 @@ public class REVEncoderTortureTest extends OpMode {
 
     @Override
     public void init() {
-        throughBoreEncoder = hardwareMap.get(DcMotor.class, "rightFront");
+        throughBoreEncoder = hardwareMap.get(DcMotor.class, "flywheel");
         throughBoreEncoderTheSecond = hardwareMap.get(DcMotor.class, "leftBack");
         throughBoreEncoderTheThird = hardwareMap.get(DcMotor.class, "leftFront");
         throughBoreEncoderTheFourth = hardwareMap.get(DcMotor.class, "rightBack");

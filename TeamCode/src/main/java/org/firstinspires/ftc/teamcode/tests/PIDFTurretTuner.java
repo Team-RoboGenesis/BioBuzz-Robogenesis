@@ -3,8 +3,10 @@ package org.firstinspires.ftc.teamcode.tests;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 
@@ -12,13 +14,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-@TeleOp(name = "PIDF test")
+@TeleOp(name = "PIDF turret tuner")
 public class PIDFTurretTuner extends OpMode {
     // config
-    private double P = 1;
-    private double I = 1;
-    private double D = 1;
+    private double P = 0.05;
+    private double I = 0;
+    private double D = 0;
     private double initalI = 0;
     private final double SERVOTICKSPERORTATION = 4096;
     private final double lowerTurretLimit = 0;
@@ -29,12 +32,18 @@ public class PIDFTurretTuner extends OpMode {
     private final double ON = 1;
 
     // default values
-    private double turretTargetAngle = 100;
-    private double servoCurrentTicks = 0;
+    private double turretTargetAngle = 0;
     private double turretCurrentAngle = 0;
-    private double servoLastTicks = 0;
     private double turretLastAngle = 0;
-    private double targetTicksPerMs = 1000;
+    private double currentSecond = 0;
+    private double startingTime = System.nanoTime() / 1_000_000_000;
+    private boolean dataCollection = true;
+    private List<Double> currentAngles = new ArrayList<>();
+    private List<Double> servoPowers = new ArrayList<>();
+    private List<Double> voltages = new ArrayList<>();
+    private List<Double> targetAngles = new ArrayList<>();
+    private List<Double> times = new ArrayList<>();
+    private List<List<Double>> data = new ArrayList<>();
     private double lastTime = System.nanoTime();
     private Map<Double, List<Double>> points = new HashMap<>();
     private double currentTime = 0;
@@ -43,8 +52,9 @@ public class PIDFTurretTuner extends OpMode {
 
     // devices and PIDF
     private PIDF pid;
-    private DcMotor turretServo;
-    private DcMotor rightFront = null;
+    private CRServo turretServo;
+    private DcMotorEx rightFront = null;
+    VoltageSensor voltageSensor;
 
     class PIDF {
         public double p, i, d, f;
@@ -119,14 +129,16 @@ public class PIDFTurretTuner extends OpMode {
         // PIDF setup
         pid = new PIDF(P, I, D, initalI);
 
-        drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90))); // TODO: get real values
+        fileUtil.init(hardwareMap.appContext, "turret log");
 
-        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
+        drive = new MecanumDrive(hardwareMap, new Pose2d(10, -53, Math.toRadians(90))); // TODO: get real values, revert x to 0
+
+        rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
         rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
 
         // device setup
-        turretServo = hardwareMap.get(DcMotor.class, "flywheel");
-        turretServo.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        turretServo = hardwareMap.get(CRServo.class, "turretBase");
+        voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
 
         // TODO: add real values
         double leftHiveX = 30, leftHiveY = 0;
@@ -147,25 +159,62 @@ public class PIDFTurretTuner extends OpMode {
         double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
         dt = Math.max(0.000001, dt);
 
-        servoCurrentTicks = rightFront.getCurrentPosition();
         Pose2d poseEstimate = drive.localizer.getPose();
 
-        turretCurrentAngle = turretLastAngle + ((servoCurrentTicks - servoLastTicks) * SERVOTICKSPERORTATION / dt);
+        turretCurrentAngle = turretLastAngle + (rightFront.getVelocity() * (dt / 1_000.0) / SERVOTICKSPERORTATION) * 360.0;
 
-        closest = getClosestPoint(poseEstimate.position.x); // get closest hive position based on X position
-        double goalY = closest.get(0);
-        double goalX = closest.get(1);
+        closest = getClosestPoint(10); // get closest hive position based on X position TODO: replace with poseEstimate.position.x
+        double goalX = 0; // TODO: REPLACE WITH closest.get(0)
+        double goalY = 30; // TODO: REPLACE WITH closest.get(1)
 
-        turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX));
+//        turretTargetAngle = Math.toDegrees(Math.atan2(40 - goalY, 40 - goalX)); // TODO: replace with poseEstimate.position.x
+        if (gamepad1.a) {
+            turretTargetAngle = 90;
+        } else if (gamepad1.b) {
+            turretTargetAngle = 0;
+        } else if (gamepad1.y) {
+            turretTargetAngle = 180;
+        } else if (gamepad1.options && dataCollection) {
+            dataCollection = false;
+            String dataString = "";
+            for (List<Double> point : data) {
+                dataString += "\n" + point.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+            }
+            fileUtil.overwriteFromIndex(dataString, 0);
+            telemetry.addLine("loaded file");
+            telemetry.update();
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
+        telemetry.addData("target turret angle", turretTargetAngle);
+        telemetry.addData("current turret angle", turretCurrentAngle);
 
-        double output = pid.tick(turretTargetAngle, turretCurrentAngle, dt);
-        output = Math.max(OFF, Math.min(ON, output));
-        turretServo.setPower(output);
+        double servoPower = pid.tick(turretTargetAngle, turretCurrentAngle, dt);
+        servoPower = Math.max(OFF, Math.min(ON, servoPower));
+        turretServo.setPower(servoPower);
+
+        if (dataCollection) {
+            currentAngles.add(turretCurrentAngle);
+            servoPowers.add(servoPower);
+            voltages.add(voltageSensor.getVoltage());
+            targetAngles.add(turretTargetAngle);
+            currentSecond = currentTime / 1_000_000_000 - startingTime;
+            times.add(currentSecond);
+            telemetry.addData("current second", currentSecond);
+        }
+
+        telemetry.addData("power", servoPower);
+        telemetry.update();
 
 
         lastTime = currentTime;
         turretLastAngle = turretCurrentAngle;
-        servoLastTicks = servoCurrentTicks;
     }
 }
