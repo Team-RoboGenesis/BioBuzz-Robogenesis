@@ -19,7 +19,7 @@ public class MeepMeepTesting {
                 .strafeTo(new Vector2d(0, 0))
                 .strafeTo(new Vector2d(10, 0))
                 .strafeTo(new Vector2d(10, 10))
-                .strafeTo(new Vector2d(-20, 20))
+                .strafeTo(new Vector2d(-20, 20)) 
                 .strafeToLinearHeading(new Vector2d(20, -20), Math.toRadians(90))
                 .splineToConstantHeading(new Vector2d(40, 40), Math.toRadians(0))
                 .splineToSplineHeading(new Pose2d(-40, 40, Math.toRadians(180)), Math.toRadians(90))
