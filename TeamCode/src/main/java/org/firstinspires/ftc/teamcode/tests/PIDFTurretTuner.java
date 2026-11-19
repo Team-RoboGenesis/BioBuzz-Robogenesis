@@ -19,13 +19,13 @@ import java.util.stream.Collectors;
 @TeleOp(name = "PIDF turret tuner")
 public class PIDFTurretTuner extends OpMode {
     // config
-    private double P = 0.05;
+    private double P = 0.005;
     private double I = 0;
     private double D = 0;
     private double initalI = 0;
-    private final double SERVOTICKSPERORTATION = 4096;
-    private final double lowerTurretLimit = 0;
-    private final double upperTurretLimit = 360;
+    private final double TICKS_PER_TURRET_ROTATION = 1436;
+    private final double lowerTurretLimit = -50;
+    private final double upperTurretLimit = 124;
 
     // constants
     private final double OFF = 0;
@@ -36,7 +36,7 @@ public class PIDFTurretTuner extends OpMode {
     private double turretCurrentAngle = 0;
     private double turretLastAngle = 0;
     private double currentSecond = 0;
-    private double startingTime = System.nanoTime() / 1_000_000_000;
+    private double startingTime = (double) System.nanoTime() / 1_000_000_000;
     private boolean dataCollection = true;
     private List<Double> currentAngles = new ArrayList<>();
     private List<Double> servoPowers = new ArrayList<>();
@@ -47,6 +47,7 @@ public class PIDFTurretTuner extends OpMode {
     private double lastTime = System.nanoTime();
     private Map<Double, List<Double>> points = new HashMap<>();
     private double currentTime = 0;
+    private int startTicks = 0;
     private MecanumDrive drive = null;
     private List<Double> closest = new ArrayList<>();
 
@@ -134,7 +135,15 @@ public class PIDFTurretTuner extends OpMode {
         drive = new MecanumDrive(hardwareMap, new Pose2d(10, -53, Math.toRadians(90))); // TODO: get real values, revert x to 0
 
         rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
-        rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
+        rightFront.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        startTicks = rightFront.getCurrentPosition();
+
+        data.add(times);
+        data.add(currentAngles);
+        data.add(servoPowers);
+        data.add(voltages);
+        data.add(targetAngles);
 
         // device setup
         turretServo = hardwareMap.get(CRServo.class, "turretBase");
@@ -161,7 +170,8 @@ public class PIDFTurretTuner extends OpMode {
 
         Pose2d poseEstimate = drive.localizer.getPose();
 
-        turretCurrentAngle = turretLastAngle + (rightFront.getVelocity() * (dt / 1_000.0) / SERVOTICKSPERORTATION) * 360.0;
+        int currentTicks = rightFront.getCurrentPosition() - startTicks;
+        turretCurrentAngle = (currentTicks / TICKS_PER_TURRET_ROTATION) * 360.0;
 
         closest = getClosestPoint(10); // get closest hive position based on X position TODO: replace with poseEstimate.position.x
         double goalX = 0; // TODO: REPLACE WITH closest.get(0)
@@ -184,6 +194,11 @@ public class PIDFTurretTuner extends OpMode {
             }
             fileUtil.overwriteFromIndex(dataString, 0);
             telemetry.addLine("loaded file");
+            telemetry.addData("Current Angle Samples", currentAngles.size());
+            telemetry.addData("Servo Power Samples", servoPowers.size());
+            telemetry.addData("Voltage Samples", voltages.size());
+            telemetry.addData("Target Samples", targetAngles.size());
+            telemetry.addData("Export Length", dataString.length());
             telemetry.update();
             try {
                 Thread.sleep(5000);
@@ -193,11 +208,12 @@ public class PIDFTurretTuner extends OpMode {
         }
 
         turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
+        telemetry.addData("current turret ticks", rightFront.getCurrentPosition());
         telemetry.addData("target turret angle", turretTargetAngle);
         telemetry.addData("current turret angle", turretCurrentAngle);
 
         double servoPower = pid.tick(turretTargetAngle, turretCurrentAngle, dt);
-        servoPower = Math.max(OFF, Math.min(ON, servoPower));
+        servoPower = Math.max(-ON, Math.min(ON, servoPower));
         turretServo.setPower(servoPower);
 
         if (dataCollection) {
