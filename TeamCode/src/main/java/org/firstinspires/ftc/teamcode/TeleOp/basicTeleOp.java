@@ -3,8 +3,6 @@ package org.firstinspires.ftc.teamcode.TeleOp;
 import android.graphics.Color;
 
 import com.acmerobotics.roadrunner.Pose2d;
-import com.acmerobotics.roadrunner.PoseVelocity2d;
-import com.acmerobotics.roadrunner.Vector2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -18,15 +16,18 @@ import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.firstinspires.ftc.teamcode.tests.fileUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @TeleOp(name = "basic TeleOp")
 public class basicTeleOp extends OpMode {
@@ -70,6 +71,7 @@ public class basicTeleOp extends OpMode {
     private CRServo leftTransferServo = null;
     private GateSensor distIn;
     private GateSensor distOut;
+    private VoltageSensor voltageSensor = null;
     private List<Servo> leds = new ArrayList<>();
     private List<Double> elements = new ArrayList<>();
     private List<GateSensor> distanceSensors = new ArrayList<>();
@@ -77,9 +79,20 @@ public class basicTeleOp extends OpMode {
     // starting values
     private List<Double> closest = new ArrayList<>();
     private Map<Double, List<Double>> points = new HashMap<>();
+    private List<Double> RPMs = new ArrayList<>();
+    private List<Double> motorPowers = new ArrayList<>();
+    private List<Double> voltages = new ArrayList<>();
+    private List<Double> targetRPMs = new ArrayList<>();
+    private List<Double> currentAngles = new ArrayList<>();
+    private List<Double> servoPowers = new ArrayList<>();
+    private List<Double> targetAngles = new ArrayList<>();
+    private List<Double> times = new ArrayList<>();
+    private List<List<Double>> data = new ArrayList<>();
     private boolean lastAPress = false;
     private double targetRPM = 0;
     private double targetTicksPerMs = 0;
+    private double currentSecond = 0;
+    private double startingTime = (double) System.nanoTime() / 1_000_000_000;
     private double lastTime = System.nanoTime();
     private double currentTime = System.nanoTime();
     private double motorCurrentTicksPerMs = 0;
@@ -230,6 +243,18 @@ public class basicTeleOp extends OpMode {
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
+        // data collection stuffs
+        data.add(times);
+        data.add(RPMs);
+        data.add(motorPowers);
+        data.add(targetRPMs);
+        data.add(currentAngles);
+        data.add(servoPowers);
+        data.add(targetAngles);
+        data.add(voltages);
+        voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
+        fileUtil.init(hardwareMap.appContext, "turret log");
+
         // IMU
         imu = hardwareMap.get(IMU.class, "imu");
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
@@ -258,10 +283,10 @@ public class basicTeleOp extends OpMode {
 
         // make PIDFs
         // make flywheel PIDF
-        double p = 0.005;
+        double p = 0.000007;
         double i = 0;
         double d = 0;
-        double f = 0.0001667; // 0.46635714285
+        double f = 0.0002002;
         flywheelPidf = new PIDF(p, i, d, f);
 
         // make turret angle PID
@@ -396,6 +421,21 @@ public class basicTeleOp extends OpMode {
         } else if (gamepad2.dpad_up) {
             rightFlowerIntake.setPosition(armUpPos);
             leftFlowerIntake.setPosition(armUpPos);
+        } else if (gamepad2.right_stick_button) {
+            String dataString = "";
+            for (List<Double> point : data) {
+                dataString += "\n" + point.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+            }
+            fileUtil.overwriteFromIndex(dataString, 0);
+            telemetry.addLine("loaded file");
+            telemetry.update();
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         // tick PIDF
@@ -407,7 +447,7 @@ public class basicTeleOp extends OpMode {
         turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
 
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
-        double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
+        double dt = (currentTime - lastTime) / 1_000_000_000; // nanoseconds -> seconds
         dt = Math.max(0.000001, dt); // avoid division by 0
 
         motorCurrentRPM = turretFlywheel.getVelocity() / MOTORTICKSPERORTATION * 60.0;
@@ -418,8 +458,9 @@ public class basicTeleOp extends OpMode {
         servoPower = Math.max(OFF, Math.min(ON, servoPower));
 //        turretBase.setPower(servoPower);
 
+        double motorPower = 0;
         if (flywheelPidfEnabled) {
-            double motorPower = flywheelPidf.tick(targetRPM, motorCurrentRPM, dt);
+            motorPower = flywheelPidf.tick(targetRPM, motorCurrentRPM, dt);
             telemetry.addData("attempted power", motorPower);
             motorPower = Math.max(OFF, Math.min(ON, motorPower));
             turretFlywheel.setPower(motorPower);
@@ -428,6 +469,17 @@ public class basicTeleOp extends OpMode {
         } else {
             turretFlywheel.setPower(OFF);
         }
+
+        RPMs.add(motorCurrentRPM);
+        motorPowers.add(motorPower);
+        voltages.add(voltageSensor.getVoltage());
+        targetRPMs.add(targetRPM);
+        currentAngles.add(turretCurrentAngle);
+        servoPowers.add(servoPower);
+        targetAngles.add(turretTargetAngle);
+        currentSecond = currentTime / 1_000_000_000 - startingTime;
+        times.add(currentSecond);
+        telemetry.addData("current second", currentSecond);
 
         lastTime = currentTime;
         telemetry.update();

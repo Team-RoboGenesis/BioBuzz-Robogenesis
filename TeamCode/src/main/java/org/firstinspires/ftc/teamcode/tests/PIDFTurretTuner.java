@@ -165,7 +165,7 @@ public class PIDFTurretTuner extends OpMode {
     public void loop() {
         // tick PIDF
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
-        double dt = (currentTime - lastTime) / 1_000_000; // nanoseconds -> milliseconds
+        double dt = (currentTime - lastTime) / 1_000_000_000; // nanoseconds -> seconds
         dt = Math.max(0.000001, dt);
 
         Pose2d poseEstimate = drive.localizer.getPose();
@@ -213,6 +213,9 @@ public class PIDFTurretTuner extends OpMode {
         telemetry.addData("current turret angle", turretCurrentAngle);
 
         double servoPower = pid.tick(turretTargetAngle, turretCurrentAngle, dt);
+        if (Math.abs(servoPower) < 0.25 && !(Math.abs(servoPower) < 0.01)) {
+            servoPower = 0.25 * Math.signum(servoPower);
+        }
         servoPower = Math.max(-ON, Math.min(ON, servoPower));
         turretServo.setPower(servoPower);
 
