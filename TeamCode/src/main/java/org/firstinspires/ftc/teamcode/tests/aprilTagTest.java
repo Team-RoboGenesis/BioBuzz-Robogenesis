@@ -13,7 +13,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 
-@TeleOp(name = "AprilTagTracking")
+@TeleOp(name = "April tag tracking")
 public class aprilTagTest extends LinearOpMode {
     @SuppressLint("DefaultLocale")
     @Override
