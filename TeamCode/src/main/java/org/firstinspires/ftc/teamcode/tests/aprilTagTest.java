@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.tests;
 import android.annotation.SuppressLint;
+import android.util.Size;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -12,10 +13,8 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 
-@TeleOp(name = "AprilTag GlobalShutter Tracking")
+@TeleOp(name = "April tag tracking")
 public class aprilTagTest extends LinearOpMode {
-    //@ObjectOverride
-    private MecanumDrive drive;
     @SuppressLint("DefaultLocale")
     @Override
     public void runOpMode() {
@@ -26,10 +25,13 @@ public class aprilTagTest extends LinearOpMode {
         // 2. Build the VisionPortal, linking it to your configured webcam name
         VisionPortal visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "cam 1"))
+                .setCameraResolution(new Size(1280,720))
+                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
                 .addProcessor(aprilTag)
                 .build();
-        drive = new MecanumDrive(hardwareMap,new Pose2d(0,-53, Math.toRadians(90)));//TODO: GET REAL VALUES
-
+        //@ObjectOverride
+        MecanumDrive drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90)));//TODO: GET REAL VALUES
+//do values later
         waitForStart();
 
         while (opModeIsActive()) {
