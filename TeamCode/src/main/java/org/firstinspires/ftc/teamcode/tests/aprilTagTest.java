@@ -40,9 +40,9 @@ public class aprilTagTest extends LinearOpMode {
             telemetry.addData("# AprilTags Detected", currentDetections.size());
 
             // 4. Iterate through detections to pull pose and ID data
-//            for (AprilTagDetection detection : currentDetections) {
-//                if (detection.metadata != null) {
-//                    telemetry.addLine(String.format("\n==== (ID %d) ====", detection.id));
+            for (AprilTagDetection detection : currentDetections) {
+                if (detection.metadata != null) {
+                   telemetry.addLine(String.format("\n==== (ID %d) ====", detection.id));
 //
 //                    telemetry.addData("XYZ Translation", "X: %6.2f, Y: %6.2f, Z: %6.2f (inches)",
 //                            detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z);
@@ -62,8 +62,8 @@ public class aprilTagTest extends LinearOpMode {
 
 //                } else {
                     telemetry.addLine(String.format("== (ID %d)", detection.id));
-//                }
-//            }
+                }
+            }
             telemetry.update();
             sleep(20);
         }
