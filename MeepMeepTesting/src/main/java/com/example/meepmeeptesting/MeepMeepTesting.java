@@ -6,8 +6,30 @@ import com.noahbres.meepmeep.MeepMeep;
 import com.noahbres.meepmeep.roadrunner.DefaultBotBuilder;
 import com.noahbres.meepmeep.roadrunner.entity.RoadRunnerBotEntity;
 
+import java.awt.Image;
+import java.io.File;
+import java.io.IOException;
+import java.util.Objects;
+
+import javax.imageio.ImageIO;
+
 public class MeepMeepTesting {
     public static void main(String[] args) {
+        Image img = null;
+        try {
+            var stream = MeepMeepTesting.class.getResourceAsStream("/biobuzz.png"); // <-- verify exact filename
+            if (stream == null) {
+                throw new RuntimeException("File not found in resources! Check exact spelling and extension.");
+            }
+            img = ImageIO.read(stream);
+            if (img == null) {
+                throw new RuntimeException("File was found, but ImageIO could not decode it (it may be a .webp file).");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
         MeepMeep meepMeep = new MeepMeep(800);
 
         RoadRunnerBotEntity myBot = new DefaultBotBuilder(meepMeep)
@@ -27,7 +49,7 @@ public class MeepMeepTesting {
                 .splineToSplineHeading(new Pose2d(0, -53, Math.toRadians(90)), Math.toRadians(0))
                 .build());
 
-        meepMeep.setBackground(MeepMeep.Background.GRID_GRAY)
+        meepMeep.setBackground(img)
                 .setDarkMode(true)
                 .setBackgroundAlpha(0.95f)
                 .addEntity(myBot)

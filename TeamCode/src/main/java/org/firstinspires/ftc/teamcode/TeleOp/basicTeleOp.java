@@ -42,7 +42,7 @@ public class basicTeleOp extends OpMode {
     private final double INTAKEPOWER = 1;
     private final double MOTORTICKSPERORTATION = 28;
     private final double TICKS_PER_TURRET_ROTATION = 1436;
-    private final double shootingRPM = 3550; // TODO: get real value
+    private final double shootingRPM = 3450; // TODO: get real value
     private final double armDownPos = 0.41;
     private final double armUpPos = 0;
     private final double trasferServoSpeed = 1;
@@ -201,7 +201,7 @@ public class basicTeleOp extends OpMode {
 
         // make PIDFs
         // make flywheel PIDF
-        double p = 0.000007;
+        double p = 0.0007;
         double i = 0;
         double d = 0;
         double f = 0.0002002;
