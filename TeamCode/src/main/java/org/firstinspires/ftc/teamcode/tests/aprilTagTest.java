@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.tests;
 import android.annotation.SuppressLint;
+import android.util.Size;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -24,6 +25,8 @@ public class aprilTagTest extends LinearOpMode {
         // 2. Build the VisionPortal, linking it to your configured webcam name
         VisionPortal visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "cam 1"))
+                .setCameraResolution(new Size(1280,720))
+                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
                 .addProcessor(aprilTag)
                 .build();
         //@ObjectOverride
