@@ -24,8 +24,8 @@ public class PIDFTurretTuner extends OpMode {
     private double D = 0;
     private double initalI = 0;
     private final double TICKS_PER_TURRET_ROTATION = 1436;
-    private final double lowerTurretLimit = -50;
-    private final double upperTurretLimit = 124;
+    private final double lowerTurretLimit = -140;
+    private final double upperTurretLimit = 140;
 
     // constants
     private final double OFF = 0;
@@ -34,7 +34,6 @@ public class PIDFTurretTuner extends OpMode {
     // default values
     private double turretTargetAngle = 0;
     private double turretCurrentAngle = 0;
-    private double turretLastAngle = 0;
     private double currentSecond = 0;
     private double startingTime = (double) System.nanoTime() / 1_000_000_000;
     private boolean dataCollection = true;
@@ -169,21 +168,26 @@ public class PIDFTurretTuner extends OpMode {
         dt = Math.max(0.000001, dt);
 
         Pose2d poseEstimate = drive.localizer.getPose();
+        drive.updatePoseEstimate();
 
         int currentTicks = rightFront.getCurrentPosition() - startTicks;
         turretCurrentAngle = (currentTicks / TICKS_PER_TURRET_ROTATION) * 360.0;
 
-        closest = getClosestPoint(10); // get closest hive position based on X position TODO: replace with poseEstimate.position.x
-        double goalX = 0; // TODO: REPLACE WITH closest.get(0)
-        double goalY = 30; // TODO: REPLACE WITH closest.get(1)
+        closest = getClosestPoint(poseEstimate.position.x); // get closest hive position based on X position TODO: replace with poseEstimate.position.x
+        telemetry.addData("x", poseEstimate.position.x);
+        telemetry.addData("y", poseEstimate.position.y);
+        double goalX = closest.get(0); // TODO: REPLACE WITH closest.get(0)
+        double goalY = closest.get(1); // TODO: REPLACE WITH closest.get(1)
+        telemetry.addData("closest gaol x", goalX);
+        telemetry.addData("closest gao y", goalY);
 
-//        turretTargetAngle = Math.toDegrees(Math.atan2(40 - goalY, 40 - goalX)); // TODO: replace with poseEstimate.position.x
+        turretTargetAngle = Math.toDegrees(Math.atan2(poseEstimate.position.y - goalY, poseEstimate.position.x - goalX)); // TODO: replace with poseEstimate.position.x
         if (gamepad1.a) {
             turretTargetAngle = 90;
         } else if (gamepad1.b) {
             turretTargetAngle = 0;
-        } else if (gamepad1.y) {
-            turretTargetAngle = 180;
+        } else if (gamepad1.x) {
+            turretTargetAngle = -90;
         } else if (gamepad1.options && dataCollection) {
             dataCollection = false;
             String dataString = "";
@@ -213,7 +217,7 @@ public class PIDFTurretTuner extends OpMode {
         telemetry.addData("current turret angle", turretCurrentAngle);
 
         double servoPower = pid.tick(turretTargetAngle, turretCurrentAngle, dt);
-        if (Math.abs(servoPower) < 0.25 && !(Math.abs(servoPower) < 0.01)) {
+        if (Math.abs(servoPower) < 0.25 && !(Math.abs(servoPower) < 0.1)) {
             servoPower = 0.25 * Math.signum(servoPower);
         }
         servoPower = Math.max(-ON, Math.min(ON, servoPower));
@@ -234,6 +238,5 @@ public class PIDFTurretTuner extends OpMode {
 
 
         lastTime = currentTime;
-        turretLastAngle = turretCurrentAngle;
     }
 }

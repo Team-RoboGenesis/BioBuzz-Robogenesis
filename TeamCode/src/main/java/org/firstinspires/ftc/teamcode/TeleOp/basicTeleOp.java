@@ -39,7 +39,7 @@ public class basicTeleOp extends OpMode {
     private final double ON = 1;
     private final double INTAKEPOWER = 1;
     private final double MOTORTICKSPERORTATION = 28;
-    private final double SERVOTICKSPERORTATION = 4096;
+    private final double TICKS_PER_TURRET_ROTATION = 1436;
     private final double shootingRPM = 3550; // TODO: get real value
     private final double armDownPos = 0.41;
     private final double armUpPos = 0;
@@ -50,8 +50,8 @@ public class basicTeleOp extends OpMode {
     // config
     private final double distInThreshold = 10; // TODO: get real value
     private final double distOutThreshold = 10; // TODO: get real value
-    private final double upperTurretLimit = 360;
-    private final double lowerTurretLimit = 0;
+    private final double lowerTurretLimit = -140;
+    private final double upperTurretLimit = 140;
 
     // device setup
     private PIDF flywheelPidf;
@@ -86,6 +86,14 @@ public class basicTeleOp extends OpMode {
     private List<Double> currentAngles = new ArrayList<>();
     private List<Double> servoPowers = new ArrayList<>();
     private List<Double> targetAngles = new ArrayList<>();
+    private List<Double> robotXPositions = new ArrayList<>();
+    private List<Double> robotYPositions = new ArrayList<>();
+    private List<Double> robotHeadings = new ArrayList<>();
+    private List<Double> RRHeadings = new ArrayList<>();
+    private List<Double> intakeRPMs = new ArrayList<>();
+    private List<Double> intakePowers = new ArrayList<>();
+    private List<Double> leftFlower = new ArrayList<>();
+    private List<Double> rightFlower = new ArrayList<>();
     private List<Double> times = new ArrayList<>();
     private List<List<Double>> data = new ArrayList<>();
     private boolean lastAPress = false;
@@ -100,6 +108,7 @@ public class basicTeleOp extends OpMode {
     private double turretCurrentAngle = 0;
     private double turretLastAngle = 0;
     private double turretTargetAngle = 0;
+    private int startServoTicks = 0;
     private boolean flywheelPidfEnabled = false;
 
     class GateSensor {
@@ -243,7 +252,7 @@ public class basicTeleOp extends OpMode {
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // data collection stuffs
+        // data collection stuffs remember that we get this data every run of loop
         data.add(times);
         data.add(RPMs);
         data.add(motorPowers);
@@ -251,9 +260,17 @@ public class basicTeleOp extends OpMode {
         data.add(currentAngles);
         data.add(servoPowers);
         data.add(targetAngles);
+        data.add(robotXPositions);
+        data.add(robotYPositions);
+        data.add(robotHeadings);
+        data.add(RRHeadings);
+        data.add(intakeRPMs);
+        data.add(intakePowers);
         data.add(voltages);
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
         fileUtil.init(hardwareMap.appContext, "turret log");
+
+        startServoTicks = rightFront.getCurrentPosition();
 
         // IMU
         imu = hardwareMap.get(IMU.class, "imu");
@@ -270,6 +287,7 @@ public class basicTeleOp extends OpMode {
 
         // make servos
         turretBase = hardwareMap.get(CRServo.class, "turretBase");
+        turretBase.setDirection(DcMotorSimple.Direction.REVERSE);
         rightFlowerIntake = hardwareMap.get(Servo.class, "rightFlowerIntake");
         leftFlowerIntake = hardwareMap.get(Servo.class, "leftFlowerIntake");
         rightTransferServo = hardwareMap.get(CRServo.class, "rightTransferServo");
@@ -290,15 +308,15 @@ public class basicTeleOp extends OpMode {
         flywheelPidf = new PIDF(p, i, d, f);
 
         // make turret angle PID
-        p = 0;
+        p = 0.005;
         i = 0;
         d = 0;
         turretBasePid = new PIDF(p, i, d, 0);
 
         // make hive centers
         // TODO: add real values
-        double leftHiveX = 30, leftHiveY = 0;
-        double rightHiveX = -30, rightHiveY = 0;
+        double leftHiveX = 12, leftHiveY = 0;
+        double rightHiveX = -12, rightHiveY = 0;
 
         points.put(leftHiveX, List.of(leftHiveX, leftHiveY));
         points.put(rightHiveX, List.of(rightHiveX, rightHiveY));
@@ -438,13 +456,33 @@ public class basicTeleOp extends OpMode {
             }
         }
 
+//        turretTargetAngle -= gamepad2.right_stick_y / 2;
+
         // tick PIDF
         closest = getClosestPoint(pose.position.x); // get closest hive position based on X position
-        double goalY = closest.get(0);
-        double goalX = closest.get(1);
+        double goalX = closest.get(0);
+        double goalY = closest.get(1);
 
-        turretTargetAngle = Math.toDegrees(Math.atan2(pose.position.y - goalY, pose.position.x - goalX));
-        turretTargetAngle = Math.max(lowerTurretLimit, Math.min(upperTurretLimit, turretTargetAngle));
+        telemetry.addData("closest gaol x", goalX);
+        telemetry.addData("closest gao y", goalY);
+
+        double robotHeading = pose.heading.toDouble();
+
+        double angleToTarget = Math.atan2(
+                goalY - pose.position.y,
+                goalX - pose.position.x
+        );
+
+//        turretTargetAngle = angleToTarget - robotHeading;
+//
+//        turretTargetAngle = Math.atan2(
+//                Math.sin(turretTargetAngle),
+//                Math.cos(turretTargetAngle)
+//        );
+//
+//        turretTargetAngle = Math.toDegrees(turretTargetAngle);
+
+        telemetry.addData("target angle", turretTargetAngle);
 
         currentTime = System.nanoTime(); // the millisecond version is inaccurate for some reason, so we use nanoseconds
         double dt = (currentTime - lastTime) / 1_000_000_000; // nanoseconds -> seconds
@@ -452,11 +490,16 @@ public class basicTeleOp extends OpMode {
 
         motorCurrentRPM = turretFlywheel.getVelocity() / MOTORTICKSPERORTATION * 60.0;
         telemetry.addData("current RPM", motorCurrentRPM);
-        turretCurrentAngle = turretLastAngle + (rightFront.getVelocity() * (dt / 1_000.0) / SERVOTICKSPERORTATION) * 360.0;
+        int currentTicks = rightFront.getCurrentPosition() - startServoTicks;
+        turretCurrentAngle = (currentTicks / TICKS_PER_TURRET_ROTATION) * 360.0;
+        telemetry.addData("current angle", turretCurrentAngle);
 
-        double servoPower = turretBasePid.tick(turretCurrentAngle, turretCurrentAngle, dt);
-        servoPower = Math.max(OFF, Math.min(ON, servoPower));
-//        turretBase.setPower(servoPower);
+        double servoPower = turretBasePid.tick(turretTargetAngle, turretCurrentAngle, dt);
+        if (Math.abs(servoPower) < 0.25 && !(Math.abs(servoPower) < 0.03)) {
+            servoPower = 0.25 * Math.signum(servoPower);
+        }
+        servoPower = Math.max(-ON, Math.min(ON, servoPower));
+        turretBase.setPower(servoPower);
 
         double motorPower = 0;
         if (flywheelPidfEnabled) {
@@ -477,6 +520,11 @@ public class basicTeleOp extends OpMode {
         currentAngles.add(turretCurrentAngle);
         servoPowers.add(servoPower);
         targetAngles.add(turretTargetAngle);
+        robotXPositions.add(pose.position.x);
+        robotYPositions.add(pose.position.y);
+        robotHeadings.add(Math.toDegrees(robotHeading));
+        RRHeadings.add(Math.toDegrees(pose.heading.toDouble()));
+        intakePowers.add(intake.getPower());
         currentSecond = currentTime / 1_000_000_000 - startingTime;
         times.add(currentSecond);
         telemetry.addData("current second", currentSecond);
