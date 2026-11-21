@@ -1,8 +1,8 @@
 package org.firstinspires.ftc.teamcode.autonomous;
 
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 
+import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -11,54 +11,50 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.firstinspires.ftc.teamcode.subsystems.PIDF;
-import org.firstinspires.ftc.teamcode.tests.fileUtil;
-
-import java.util.List;
 
 public class subsystems {
     // constants
-    private final double ON = 1;
-    private final double OFF = 0;
-    private final double RED = 0.280;
-    private final double BLUE = 0.611;
-    private final double YELLOW = 0.388;
-    private final double INTAKEPOWER = 1;
-    private final double MOTORTICKSPERORTATION = 28;
-    private final double TICKS_PER_TURRET_ROTATION = 1436;
-    private final double shootingRPM = 3550; // TODO: get real value
-    private final double armDownPos = 0.41;
-    private final double armUpPos = 0;
-    private final double trasferServoSpeed = 1;
-    private final double startX = 0;
-    private final double startY = -53;
+    private static final double ON = 1;
+    private static final double OFF = 0;
+    private static final double RED = 0.280;
+    private static final double BLUE = 0.611;
+    private static final double YELLOW = 0.388;
+    private static final double INTAKEPOWER = 1;
+    private static final double MOTORTICKSPERORTATION = 28;
+    private static final double TICKS_PER_TURRET_ROTATION = 1436;
+    private static final double shootingRPM = 3550; // TODO: get real value
+    private static final double armDownPos = 0.41;
+    private static final double armUpPos = 0;
+    private static final double trasferServoSpeed = 1;
+    private static final double startX = 0;
+    private static final double startY = -53;
 
     // device setup
-    private PIDF flywheelPidf;
-    private PIDF turretBasePid;
-    private MecanumDrive drive = null;
-    private DcMotorEx rightFront = null;
-    private DcMotor leftFront = null;
-    private DcMotor rightBack = null;
-    private DcMotor leftBack = null;
-    private DcMotor intake = null;
-    private DcMotorEx turretFlywheel = null;
-    private IMU imu = null;
-    private CRServo turretBase = null;
-    private Servo rightFlowerIntake = null;
-    private Servo leftFlowerIntake = null;
-    private CRServo rightTransferServo = null;
-    private CRServo leftTransferServo = null;
+    private static PIDF flywheelPidf;
+    private static PIDF turretBasePid;
+    private static MecanumDrive drive = null;
+    private static DcMotorEx rightFront = null;
+    private static DcMotor leftFront = null;
+    private static DcMotor rightBack = null;
+    private static DcMotor leftBack = null;
+    private static DcMotor intake = null;
+    private static DcMotorEx turretFlywheel = null;
+    private static IMU imu = null;
+    private static CRServo turretBase = null;
+    private static Servo rightFlowerIntake = null;
+    private static Servo leftFlowerIntake = null;
+    private static CRServo rightTransferServo = null;
+    private static CRServo leftTransferServo = null;
 
     // starting values
-    private boolean flywheelPidfEnabled = true;
-    private double lastTime = System.nanoTime();
-    private double motorCurrentRPM = 0;
+    private static boolean flywheelPidfEnabled = true;
+    private static double lastTime = System.nanoTime();
+    private static double motorCurrentRPM = 0;
 
-    public void sleep(double millis) {
+    public static void sleep(double millis) {
         try {
             Thread.sleep((long) millis);
         } catch (InterruptedException e) {
@@ -66,7 +62,7 @@ public class subsystems {
         }
     }
 
-    public void init() {
+    public static void initAuto() {
         // make motors
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
@@ -131,7 +127,7 @@ public class subsystems {
 //        leds.add(hardwareMap.get(Servo.class, "led4"));
     }
 
-    public void startFlywheel() {
+    public static void startFlywheel() {
         while (shootingRPM - motorCurrentRPM < 100) {
             double currentTime = System.nanoTime();
             double dt = (currentTime - lastTime) / 1_000_000_000; // nanoseconds -> seconds
@@ -144,11 +140,11 @@ public class subsystems {
         }
     }
 
-    public void startIntake() {
+    public static void startIntake() {
         intake.setPower(INTAKEPOWER);
     }
 
-    public void alternateFlowerIntake() {
+    public static void alternateFlowerIntake() {
         if (rightFlowerIntake.getPosition() == armUpPos) {
             rightFlowerIntake.setPosition(armDownPos);
             leftFlowerIntake.setPosition(armDownPos);
@@ -158,7 +154,7 @@ public class subsystems {
         }
     }
 
-    public void shoot() {
+    public static void shoot() {
         rightTransferServo.setPower(trasferServoSpeed);
         leftTransferServo.setPower(trasferServoSpeed);
         sleep(4000);
@@ -166,7 +162,7 @@ public class subsystems {
         leftTransferServo.setPower(OFF);
     }
 
-    public void stopAll() {
+    public static void stopAll() {
         intake.setPower(OFF);
         turretFlywheel.setPower(OFF);
         rightTransferServo.setPower(OFF);
