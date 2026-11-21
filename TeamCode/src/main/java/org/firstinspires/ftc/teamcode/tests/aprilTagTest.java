@@ -23,7 +23,7 @@ public class aprilTagTest extends LinearOpMode {
 
         // 2. Build the VisionPortal, linking it to your configured webcam name
         VisionPortal visionPortal = new VisionPortal.Builder()
-                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                .setCamera(hardwareMap.get(WebcamName.class, "cam 1"))
                 .addProcessor(aprilTag)
                 .build();
         //@ObjectOverride
