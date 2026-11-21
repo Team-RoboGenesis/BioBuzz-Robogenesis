@@ -40,30 +40,30 @@ public class aprilTagTest extends LinearOpMode {
             telemetry.addData("# AprilTags Detected", currentDetections.size());
 
             // 4. Iterate through detections to pull pose and ID data
-            for (AprilTagDetection detection : currentDetections) {
-                if (detection.metadata != null) {
-                    telemetry.addLine(String.format("\n==== (ID %d) ====", detection.id));
-
-                    telemetry.addData("XYZ Translation", "X: %6.2f, Y: %6.2f, Z: %6.2f (inches)",
-                            detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z);
+//            for (AprilTagDetection detection : currentDetections) {
+//                if (detection.metadata != null) {
+//                    telemetry.addLine(String.format("\n==== (ID %d) ====", detection.id));
+//
+//                    telemetry.addData("XYZ Translation", "X: %6.2f, Y: %6.2f, Z: %6.2f (inches)",
+//                            detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z);
 
                     // To remember:
                     // Range: Straight line distance from camera lens to the tag center
                     // Bearing: Horizontal angle offset to the tag (- degrees is Left, + is Right)
                     // Elevation: Vertical angle offset to the tag
-                    telemetry.addData("Navigation Info", "Range: %6.2f (in), Bearing: %6.2f (deg), Elevation: %6.2f (deg)",
-                            detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation);
-
-
-                    telemetry.addData("Relative Angles", "Yaw: %6.2f, Pitch: %6.2f, Roll: %6.2f (deg)",
-                            detection.ftcPose.yaw, detection.ftcPose.pitch, detection.ftcPose.roll);
-                    Pose2d poseEstimate = drive.localizer.getPose();
+//                    telemetry.addData("Navigation Info", "Range: %6.2f (in), Bearing: %6.2f (deg), Elevation: %6.2f (deg)",
+//                            detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation);
+//
+//
+//                    telemetry.addData("Relative Angles", "Yaw: %6.2f, Pitch: %6.2f, Roll: %6.2f (deg)",
+//                            detection.ftcPose.yaw, detection.ftcPose.pitch, detection.ftcPose.roll);
+//                    Pose2d poseEstimate = drive.localizer.getPose();
                     
 
-                } else {
+//                } else {
                     telemetry.addLine(String.format("== (ID %d) Unknown", detection.id));
-                }
-            }
+//                }
+//            }
             telemetry.update();
             sleep(20);
         }
