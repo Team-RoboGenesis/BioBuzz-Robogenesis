@@ -14,17 +14,24 @@ import java.util.Objects;
 import javax.imageio.ImageIO;
 
 public class MeepMeepTesting {
+    // preset positions
+    private static double left = Math.toRadians(180);
+    private static double right = Math.toRadians(0);
+    private static double up = Math.toRadians(90);
+    private static double down = Math.toRadians(-90);
+    private static Vector2d rightHive = new Vector2d(63, -12);
+    private static Vector2d leftHive = new Vector2d(-63, -12);
+    private static Vector2d backFlower = new Vector2d(24, -56);
+    private static Vector2d rightFlower = new Vector2d(-63, -12);
+    private static Vector2d leftFlower = new Vector2d(-63, -12);
+    private static Vector2d topFlower = new Vector2d(-63, -12);
+
     public static void main(String[] args) {
         Image img = null;
         try {
-            var stream = MeepMeepTesting.class.getResourceAsStream("/biobuzz.png"); // <-- verify exact filename
-            if (stream == null) {
-                throw new RuntimeException("File not found in resources! Check exact spelling and extension.");
-            }
-            img = ImageIO.read(stream);
-            if (img == null) {
-                throw new RuntimeException("File was found, but ImageIO could not decode it (it may be a .webp file).");
-            }
+            img = ImageIO.read(Objects.requireNonNull(
+                    MeepMeepTesting.class.getResourceAsStream("/biobuzz.png")
+            ));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -37,16 +44,17 @@ public class MeepMeepTesting {
                 .setConstraints(60, 60, Math.toRadians(180), Math.toRadians(180), 15)
                 .build();
 
-        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(new Vector2d(0, 63), Math.toRadians(270)))
-                .strafeTo(new Vector2d(0, 0))
-                .strafeTo(new Vector2d(10, 0))
-                .strafeTo(new Vector2d(10, 10))
-                .strafeTo(new Vector2d(-20, 20)) 
-                .strafeToLinearHeading(new Vector2d(20, -20), Math.toRadians(90))
-                .splineToConstantHeading(new Vector2d(40, 40), Math.toRadians(0))
-                .splineToSplineHeading(new Pose2d(-40, 40, Math.toRadians(180)), Math.toRadians(90))
-                .strafeToSplineHeading(new Vector2d(30, 30), Math.toRadians(180))
-                .splineToSplineHeading(new Pose2d(0, -53, Math.toRadians(90)), Math.toRadians(0))
+        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(new Vector2d(0, -63), Math.toRadians(90)))
+                .strafeToLinearHeading(rightHive, left)
+                // shoot
+                .strafeToLinearHeading(backFlower, down)
+                // lower flower
+                .strafeTo(new Vector2d(24, -60))
+                // sleep
+                .strafeTo(backFlower)
+                // lift flower
+                .strafeToLinearHeading(leftHive, right)
+                // shoot
                 .build());
 
         meepMeep.setBackground(img)
