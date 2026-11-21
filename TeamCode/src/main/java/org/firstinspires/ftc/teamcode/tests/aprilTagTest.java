@@ -61,7 +61,7 @@ public class aprilTagTest extends LinearOpMode {
                     
 
 //                } else {
-                    telemetry.addLine(String.format("== (ID %d) Unknown", detection.id));
+                    telemetry.addLine(String.format("== (ID %d)", detection.id));
 //                }
 //            }
             telemetry.update();
