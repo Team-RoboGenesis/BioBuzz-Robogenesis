@@ -12,10 +12,8 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 
-@TeleOp(name = "AprilTag GlobalShutter Tracking")
+@TeleOp(name = "AprilTagTracking")
 public class aprilTagTest extends LinearOpMode {
-    //@ObjectOverride
-    private MecanumDrive drive;
     @SuppressLint("DefaultLocale")
     @Override
     public void runOpMode() {
@@ -25,11 +23,12 @@ public class aprilTagTest extends LinearOpMode {
 
         // 2. Build the VisionPortal, linking it to your configured webcam name
         VisionPortal visionPortal = new VisionPortal.Builder()
-                .setCamera(hardwareMap.get(WebcamName.class, "cam 1"))
+                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
                 .addProcessor(aprilTag)
                 .build();
-        drive = new MecanumDrive(hardwareMap,new Pose2d(0,-53, Math.toRadians(90)));//TODO: GET REAL VALUES
-
+        //@ObjectOverride
+        MecanumDrive drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90)));//TODO: GET REAL VALUES
+//do values later
         waitForStart();
 
         while (opModeIsActive()) {
