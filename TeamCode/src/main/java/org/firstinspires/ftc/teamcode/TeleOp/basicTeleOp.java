@@ -21,6 +21,8 @@ import com.qualcomm.robotcore.hardware.VoltageSensor;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.firstinspires.ftc.teamcode.subsystems.GateSensor;
+import org.firstinspires.ftc.teamcode.subsystems.PIDF;
 import org.firstinspires.ftc.teamcode.tests.fileUtil;
 
 import java.util.ArrayList;
@@ -92,8 +94,8 @@ public class basicTeleOp extends OpMode {
     private List<Double> RRHeadings = new ArrayList<>();
     private List<Double> intakeRPMs = new ArrayList<>();
     private List<Double> intakePowers = new ArrayList<>();
-    private List<Double> leftFlower = new ArrayList<>();
-    private List<Double> rightFlower = new ArrayList<>();
+    private List<Double> leftFlowerPositions = new ArrayList<>();
+    private List<Double> rightFlowerPositions = new ArrayList<>();
     private List<Double> times = new ArrayList<>();
     private List<List<Double>> data = new ArrayList<>();
     private boolean lastAPress = false;
@@ -110,110 +112,6 @@ public class basicTeleOp extends OpMode {
     private double turretTargetAngle = 0;
     private int startServoTicks = 0;
     private boolean flywheelPidfEnabled = false;
-
-    class GateSensor {
-        private DistanceSensor distanceSensor;
-        private double threshold;
-        private boolean last;
-        private boolean entrance;
-        private NormalizedColorSensor colorSensor;
-        private boolean color;
-
-        public GateSensor(HardwareMap hwMap, String deviceName, double threshold, boolean color) {
-            this.distanceSensor = hwMap.get(DistanceSensor.class, deviceName);
-            this.color = color;
-            if (color) {
-                this.colorSensor = hwMap.get(NormalizedColorSensor.class, deviceName);
-            }
-            this.threshold = threshold;
-            this.last = false;
-            this.entrance = deviceName.toLowerCase().contains("in"); // kinda dumb but it removes an argument
-        }
-
-        public int getData() {
-            double distance = this.distanceSensor.getDistance(DistanceUnit.CM);
-            boolean current = distance < this.threshold;
-
-            if (current != this.last) {
-                this.last = current;
-
-                if (this.entrance && current) {
-                    return 1;
-                } else if (!current) {
-                    return -1;
-                }
-            }
-
-            return 0;
-        }
-
-        public double getColor() {
-            if (!color) {
-                return 0;
-            }
-
-            NormalizedRGBA colors = this.colorSensor.getNormalizedColors();
-            // get colors with colors.red, green and blue
-
-            float[] hsvValues = new float[3];
-            Color.colorToHSV(colors.toColor(), hsvValues);
-
-            double hue = hsvValues[0];
-            return hue / 360;
-        }
-    }
-
-    class PIDF {
-        public double p, i, d, f;
-        private double integral;
-        private double previousError;
-        private boolean initialized = false;
-
-        private PIDF(double p, double i, double d, double f) {
-            // fallback for if you don't supply initialI
-            this(p, i, d, f, 0.0);
-        }
-        private PIDF(double p, double i, double d, double f, double initialI) {
-            // initialize variables
-            this.p = p;
-            this.i = i;
-            this.d = d;
-            this.f = f;
-            this.integral = initialI;
-            this.previousError = 0.0;
-        }
-        private double tick(double target, double current, double dt) {
-            // tick one timestep
-            double error = target - current;
-
-            if (!initialized) {
-                previousError = error;
-                initialized = true;
-            }
-
-            // Integral term
-            integral += error * dt;
-
-            // Derivative term
-            double derivative = dt > 0
-                    ? (error - previousError) / dt
-                    : 0.0;
-
-            // Feedforward term
-            double feedforward = f * target;
-
-            // PIDF output
-            double output = p * error +
-                    i * integral +
-                    d * derivative +
-                    feedforward;
-
-            // Store error for the next tick
-            previousError = error;
-
-            return output;
-        }
-    }
 
     public List<Double> getClosestPoint(double value) {
         List<Double> xValues = new ArrayList<>(points.keySet());
@@ -266,6 +164,8 @@ public class basicTeleOp extends OpMode {
         data.add(RRHeadings);
         data.add(intakeRPMs);
         data.add(intakePowers);
+        data.add(rightFlowerPositions);
+        data.add(leftFlowerPositions);
         data.add(voltages);
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
         fileUtil.init(hardwareMap.appContext, "turret log");
@@ -525,6 +425,8 @@ public class basicTeleOp extends OpMode {
         robotHeadings.add(Math.toDegrees(robotHeading));
         RRHeadings.add(Math.toDegrees(pose.heading.toDouble()));
         intakePowers.add(intake.getPower());
+        rightFlowerPositions.add(rightFlowerIntake.getPosition());
+        leftFlowerPositions.add(leftFlowerIntake.getPosition());
         currentSecond = currentTime / 1_000_000_000 - startingTime;
         times.add(currentSecond);
         telemetry.addData("current second", currentSecond);
