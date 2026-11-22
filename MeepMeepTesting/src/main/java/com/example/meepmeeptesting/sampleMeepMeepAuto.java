@@ -12,6 +12,16 @@ import java.util.Objects;
 import javax.imageio.ImageIO;
 
 public class sampleMeepMeepAuto {
+    private static double left = Math.toRadians(180);
+    private static double right = Math.toRadians(0);
+    private static double up = Math.toRadians(90);
+    private static double down = Math.toRadians(-90);
+    private static Vector2d rightHive = new Vector2d(60, -12);
+    private static Vector2d leftHive = new Vector2d(-60, -12);
+    private static Vector2d backFlower = new Vector2d(24, -50);
+    private static Vector2d rightFlower = new Vector2d(-63, -12);
+    private static Vector2d leftFlower = new Vector2d(-63, -12);
+    private static Vector2d topFlower = new Vector2d(-63, -12);
     public static void main(String[] args) {
         Image img = null;
         try {
@@ -31,15 +41,21 @@ public class sampleMeepMeepAuto {
                 .build();
 
         myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(new Vector2d(0, 63), Math.toRadians(270)))
-                .strafeTo(new Vector2d(0, 0))
-                .strafeTo(new Vector2d(10, 0))
-                .strafeTo(new Vector2d(10, 10))
-                .strafeTo(new Vector2d(-20, 20))
-                .strafeToLinearHeading(new Vector2d(20, -20), Math.toRadians(90))
-                .splineToConstantHeading(new Vector2d(40, 40), Math.toRadians(0))
-                .splineToSplineHeading(new Pose2d(-40, 40, Math.toRadians(180)), Math.toRadians(90))
-                .strafeToSplineHeading(new Vector2d(30, 30), Math.toRadians(180))
-                .splineToSplineHeading(new Pose2d(0, -53, Math.toRadians(90)), Math.toRadians(0))
+                .lineToY(-55)
+                .strafeTo(new Vector2d(rightHive.x, -55))
+                .strafeTo(rightHive)
+                .turnTo(right)
+                // shoot
+                .strafeTo(new Vector2d(rightHive.x, backFlower.y))
+                .strafeTo(new Vector2d(backFlower.x, backFlower.y))
+                .turnTo(down)
+                // lower flower
+                .lineToY(-60)
+                // sleep
+                .lineToY(backFlower.y)
+                // lift flower
+                .strafeToLinearHeading(leftHive, right)
+                // shoot
                 .build());
 
         meepMeep.setBackground(img)

@@ -21,6 +21,7 @@ import com.qualcomm.robotcore.hardware.VoltageSensor;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.firstinspires.ftc.teamcode.autonomous.subsystems;
 import org.firstinspires.ftc.teamcode.subsystems.GateSensor;
 import org.firstinspires.ftc.teamcode.subsystems.PIDF;
 import org.firstinspires.ftc.teamcode.tests.fileUtil;
@@ -112,6 +113,7 @@ public class basicTeleOp extends OpMode {
     private double turretTargetAngle = 0;
     private int startServoTicks = 0;
     private boolean flywheelPidfEnabled = false;
+    private double iterations = 0;
 
     public List<Double> getClosestPoint(double value) {
         List<Double> xValues = new ArrayList<>(points.keySet());
@@ -413,25 +415,28 @@ public class basicTeleOp extends OpMode {
             turretFlywheel.setPower(OFF);
         }
 
-        RPMs.add(motorCurrentRPM);
-        motorPowers.add(motorPower);
-        voltages.add(voltageSensor.getVoltage());
-        targetRPMs.add(targetRPM);
-        currentAngles.add(turretCurrentAngle);
-        servoPowers.add(servoPower);
-        targetAngles.add(turretTargetAngle);
-        robotXPositions.add(pose.position.x);
-        robotYPositions.add(pose.position.y);
-        robotHeadings.add(Math.toDegrees(robotHeading));
-        RRHeadings.add(Math.toDegrees(pose.heading.toDouble()));
-        intakePowers.add(intake.getPower());
-        rightFlowerPositions.add(rightFlowerIntake.getPosition());
-        leftFlowerPositions.add(leftFlowerIntake.getPosition());
-        currentSecond = currentTime / 1_000_000_000 - startingTime;
-        times.add(currentSecond);
-        telemetry.addData("current second", currentSecond);
+        if (iterations % 15 == 0) {
+            RPMs.add(motorCurrentRPM);
+            motorPowers.add(motorPower);
+            voltages.add(voltageSensor.getVoltage());
+            targetRPMs.add(targetRPM);
+            currentAngles.add(turretCurrentAngle);
+            servoPowers.add(servoPower);
+            targetAngles.add(turretTargetAngle);
+            robotXPositions.add(pose.position.x);
+            robotYPositions.add(pose.position.y);
+            robotHeadings.add(Math.toDegrees(robotHeading));
+            RRHeadings.add(Math.toDegrees(pose.heading.toDouble()));
+            intakePowers.add(intake.getPower());
+            rightFlowerPositions.add(rightFlowerIntake.getPosition());
+            leftFlowerPositions.add(leftFlowerIntake.getPosition());
+            currentSecond = currentTime / 1_000_000_000 - startingTime;
+            times.add(currentSecond);
+            telemetry.addData("current second", currentSecond);
+        }
 
         lastTime = currentTime;
+        iterations++;
         telemetry.update();
     }
 }

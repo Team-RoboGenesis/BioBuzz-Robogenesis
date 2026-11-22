@@ -19,9 +19,9 @@ public class MeepMeepTesting {
     private static double right = Math.toRadians(0);
     private static double up = Math.toRadians(90);
     private static double down = Math.toRadians(-90);
-    private static Vector2d rightHive = new Vector2d(63, -12);
-    private static Vector2d leftHive = new Vector2d(-63, -12);
-    private static Vector2d backFlower = new Vector2d(24, -56);
+    private static Vector2d rightHive = new Vector2d(60, -12);
+    private static Vector2d leftHive = new Vector2d(-60, -12);
+    private static Vector2d backFlower = new Vector2d(24, -50);
     private static Vector2d rightFlower = new Vector2d(-63, -12);
     private static Vector2d leftFlower = new Vector2d(-63, -12);
     private static Vector2d topFlower = new Vector2d(-63, -12);
@@ -44,17 +44,8 @@ public class MeepMeepTesting {
                 .setConstraints(60, 60, Math.toRadians(180), Math.toRadians(180), 15)
                 .build();
 
-        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(new Vector2d(0, -63), Math.toRadians(90)))
-                .strafeToLinearHeading(rightHive, left)
-                // shoot
-                .strafeToLinearHeading(backFlower, down)
-                // lower flower
-                .strafeTo(new Vector2d(24, -60))
-                // sleep
-                .strafeTo(backFlower)
-                // lift flower
-                .strafeToLinearHeading(leftHive, right)
-                // shoot
+        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(new Vector2d(-12, -63), Math.toRadians(90)))
+                .strafeTo(new Vector2d(-50, -63))
                 .build());
 
         meepMeep.setBackground(img)

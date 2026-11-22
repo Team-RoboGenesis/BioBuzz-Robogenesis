@@ -1,19 +1,30 @@
 package org.firstinspires.ftc.teamcode.autonomous;
 
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 
-import com.acmerobotics.roadrunner.Action;
+import android.util.Size;
+
 import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.firstinspires.ftc.teamcode.subsystems.PIDF;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class subsystems {
     // constants
@@ -25,7 +36,7 @@ public class subsystems {
     private static final double INTAKEPOWER = 1;
     private static final double MOTORTICKSPERORTATION = 28;
     private static final double TICKS_PER_TURRET_ROTATION = 1436;
-    private static final double shootingRPM = 3550; // TODO: get real value
+    private static final double shootingRPM = 3450; // TODO: get real value
     private static final double armDownPos = 0.41;
     private static final double armUpPos = 0;
     private static final double trasferServoSpeed = 1;
@@ -35,6 +46,7 @@ public class subsystems {
     // device setup
     private static PIDF flywheelPidf;
     private static PIDF turretBasePid;
+    private static AprilTagProcessor aprilTag;
     private static MecanumDrive drive = null;
     private static DcMotorEx rightFront = null;
     private static DcMotor leftFront = null;
@@ -53,6 +65,7 @@ public class subsystems {
     private static boolean flywheelPidfEnabled = true;
     private static double lastTime = System.nanoTime();
     private static double motorCurrentRPM = 0;
+    private static List<Integer> aprilTags = new ArrayList<>();
 
     public static void sleep(double millis) {
         try {
@@ -62,7 +75,12 @@ public class subsystems {
         }
     }
 
-    public static void initAuto() {
+    public static void initAuto(HardwareMap hardwareMap, String color) {
+        if (color == "blue") {
+            aprilTags.addAll(List.of(42, 43, 44, 45, 38, 39, 40, 41));
+        } else {
+            aprilTags.addAll(List.of(30, 31, 32, 33, 34, 35, 36, 37));
+        }
         // make motors
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         rightFront = hardwareMap.get(DcMotorEx.class, "rightFront");
@@ -88,6 +106,16 @@ public class subsystems {
                 RevHubOrientationOnRobot.UsbFacingDirection.UP));
         imu.initialize(parameters);
         imu.resetYaw();
+
+        // april tag
+        aprilTag = new AprilTagProcessor.Builder()
+                .build();
+        VisionPortal visionPortal = new VisionPortal.Builder()
+                .setCamera(hardwareMap.get(WebcamName.class, "cam 1"))
+                .setCameraResolution(new Size(1280,720))
+                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
+                .addProcessor(aprilTag)
+                .build();
 
         // Initialize MecanumDrive
         drive = new MecanumDrive(hardwareMap, new Pose2d(0, -53, Math.toRadians(90))); // TODO: get real values
@@ -127,8 +155,22 @@ public class subsystems {
 //        leds.add(hardwareMap.get(Servo.class, "led4"));
     }
 
+    public static boolean getUp() {
+        // 3. Get the list of current AprilTag detections
+        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        List<Integer> detectedIDs = new ArrayList<>();
+
+        // 4. Iterate through detections to pull pose and ID data
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.metadata != null) {
+                detectedIDs.add(detection.id);
+            }
+        }
+        return !Collections.disjoint(detectedIDs, aprilTags); // get if any of the IDs are in the april tag list
+    }
+
     public static void startFlywheel() {
-        while (shootingRPM - motorCurrentRPM < 100) {
+        while (shootingRPM - motorCurrentRPM > 100) {
             double currentTime = System.nanoTime();
             double dt = (currentTime - lastTime) / 1_000_000_000; // nanoseconds -> seconds
             dt = Math.max(0.000001, dt); // avoid division by 0
@@ -137,7 +179,9 @@ public class subsystems {
             motorPower = Math.max(OFF, Math.min(ON, motorPower));
             turretFlywheel.setPower(motorPower);
             lastTime = currentTime;
+            sleep(10);
         }
+        sleep(2000);
     }
 
     public static void startIntake() {
@@ -155,8 +199,9 @@ public class subsystems {
     }
 
     public static void shoot() {
+        intake.setPower(INTAKEPOWER);
         rightTransferServo.setPower(trasferServoSpeed);
-        leftTransferServo.setPower(trasferServoSpeed);
+        leftTransferServo.setPower(-trasferServoSpeed);
         sleep(4000);
         rightTransferServo.setPower(OFF);
         leftTransferServo.setPower(OFF);
