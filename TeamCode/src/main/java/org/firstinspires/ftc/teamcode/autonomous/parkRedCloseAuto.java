@@ -33,7 +33,7 @@ public class parkRedCloseAuto extends LinearOpMode {
         // Auto pathing
         TrajectoryActionBuilder move = drive.actionBuilder(beginPose)
                 // first cycle
-                .strafeTo(new Vector2d(-31, -63))
+                .strafeTo(new Vector2d(-31, -62))
                 ;
 
         Action auto = move.build();

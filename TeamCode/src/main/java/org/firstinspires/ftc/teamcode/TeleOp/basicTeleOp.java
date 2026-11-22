@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.TeleOp;
 
 import android.graphics.Color;
+import android.os.Build;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
@@ -26,6 +27,8 @@ import org.firstinspires.ftc.teamcode.subsystems.GateSensor;
 import org.firstinspires.ftc.teamcode.subsystems.PIDF;
 import org.firstinspires.ftc.teamcode.tests.fileUtil;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -170,7 +173,15 @@ public class basicTeleOp extends OpMode {
         data.add(leftFlowerPositions);
         data.add(voltages);
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
-        fileUtil.init(hardwareMap.appContext, "turret log");
+        DateTimeFormatter formatter = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+        }
+        String currentTime = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            currentTime = LocalTime.now().format(formatter);
+        }
+        fileUtil.init(hardwareMap.appContext, currentTime);
 
         startServoTicks = rightFront.getCurrentPosition();
 
