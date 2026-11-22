@@ -330,11 +330,11 @@ public class basicTeleOp extends OpMode {
         } else if (gamepad2.y) {
             rightTransferServo.setPower(trasferServoSpeed);
             leftTransferServo.setPower(-trasferServoSpeed);
-        } else if (gamepad2.left_bumper) {
-            flywheelPidfEnabled = false;
-        } else if (gamepad2.x) {
+        } else if (!gamepad2.y) {
             rightTransferServo.setPower(OFF);
             leftTransferServo.setPower(OFF);
+        } else if (gamepad2.left_bumper) {
+            flywheelPidfEnabled = false;
         } else if (gamepad2.dpad_down) {
             rightFlowerIntake.setPosition(armDownPos);
             leftFlowerIntake.setPosition(armDownPos);
@@ -432,8 +432,9 @@ public class basicTeleOp extends OpMode {
             leftFlowerPositions.add(leftFlowerIntake.getPosition());
             currentSecond = currentTime / 1_000_000_000 - startingTime;
             times.add(currentSecond);
-            telemetry.addData("current second", currentSecond);
         }
+
+        telemetry.addData("current second", currentSecond);
 
         lastTime = currentTime;
         iterations++;
