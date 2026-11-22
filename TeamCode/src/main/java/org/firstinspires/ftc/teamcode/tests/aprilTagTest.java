@@ -42,7 +42,7 @@ public class aprilTagTest extends LinearOpMode {
             // 4. Iterate through detections to pull pose and ID data
             for (AprilTagDetection detection : currentDetections) {
                 if (detection.metadata != null) {
-                    telemetry.addLine(String.format("\n==== (ID %d) ====", detection.id));
+                   telemetry.addLine(String.format("\n==== (ID %d) ====", detection.id));
 
                     telemetry.addData("XYZ Translation", "X: %6.2f, Y: %6.2f, Z: %6.2f (inches)",
                             detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z);
@@ -50,7 +50,7 @@ public class aprilTagTest extends LinearOpMode {
                     // To remember:
                     // Range: Straight line distance from camera lens to the tag center
                     // Bearing: Horizontal angle offset to the tag (- degrees is Left, + is Right)
-                    // Elevation: Vertical angle offset to the tag
+                   //  Elevation: Vertical angle offset to the tag
                     telemetry.addData("Navigation Info", "Range: %6.2f (in), Bearing: %6.2f (deg), Elevation: %6.2f (deg)",
                             detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation);
 
@@ -61,7 +61,7 @@ public class aprilTagTest extends LinearOpMode {
                     
 
                 } else {
-                    telemetry.addLine(String.format("== (ID %d) Unknown", detection.id));
+                    telemetry.addLine(String.format("== (ID %d)", detection.id));
                 }
             }
             telemetry.update();
