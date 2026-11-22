@@ -173,15 +173,7 @@ public class basicTeleOp extends OpMode {
         data.add(leftFlowerPositions);
         data.add(voltages);
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
-        DateTimeFormatter formatter = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-        }
-        String currentTime = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            currentTime = LocalTime.now().format(formatter);
-        }
-        fileUtil.init(hardwareMap.appContext, currentTime);
+        fileUtil.init(hardwareMap.appContext, "hjgghfgtyvgbhy");
 
         startServoTicks = rightFront.getCurrentPosition();
 
