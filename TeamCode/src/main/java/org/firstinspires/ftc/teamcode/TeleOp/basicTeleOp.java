@@ -330,9 +330,6 @@ public class basicTeleOp extends OpMode {
         } else if (gamepad2.y) {
             rightTransferServo.setPower(trasferServoSpeed);
             leftTransferServo.setPower(-trasferServoSpeed);
-        } else if (!gamepad2.y) {
-            rightTransferServo.setPower(OFF);
-            leftTransferServo.setPower(OFF);
         } else if (gamepad2.left_bumper) {
             flywheelPidfEnabled = false;
         } else if (gamepad2.dpad_down) {
@@ -356,6 +353,9 @@ public class basicTeleOp extends OpMode {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+        } else if (!gamepad2.y) {
+            rightTransferServo.setPower(OFF);
+            leftTransferServo.setPower(OFF);
         }
 
 //        turretTargetAngle -= gamepad2.right_stick_y / 2;
