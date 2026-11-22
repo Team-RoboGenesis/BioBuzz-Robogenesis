@@ -173,7 +173,7 @@ public class basicTeleOp extends OpMode {
         data.add(leftFlowerPositions);
         data.add(voltages);
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
-        fileUtil.init(hardwareMap.appContext, "hjgghfgtyvgbhy");
+        fileUtil.init(hardwareMap.appContext, "hjgghfgtyvgbhy the second");
 
         startServoTicks = rightFront.getCurrentPosition();
 
@@ -356,6 +356,8 @@ public class basicTeleOp extends OpMode {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+        } else if (gamepad2.b) {
+            intake.setPower(-INTAKEPOWER);
         } else if (!gamepad2.y) {
             rightTransferServo.setPower(OFF);
             leftTransferServo.setPower(OFF);
