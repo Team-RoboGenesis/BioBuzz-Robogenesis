@@ -27,8 +27,9 @@ import org.firstinspires.ftc.teamcode.subsystems.GateSensor;
 import org.firstinspires.ftc.teamcode.subsystems.PIDF;
 import org.firstinspires.ftc.teamcode.tests.fileUtil;
 
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -117,6 +118,7 @@ public class basicTeleOp extends OpMode {
     private int startServoTicks = 0;
     private boolean flywheelPidfEnabled = false;
     private double iterations = 0;
+    private String formattedTime = null;
 
     public List<Double> getClosestPoint(double value) {
         List<Double> xValues = new ArrayList<>(points.keySet());
@@ -173,7 +175,9 @@ public class basicTeleOp extends OpMode {
         data.add(leftFlowerPositions);
         data.add(voltages);
         voltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
-        fileUtil.init(hardwareMap.appContext, "hjgghfgtyvgbhy the second");
+        SimpleDateFormat formatter = new SimpleDateFormat("HH:mm:ss", Locale.US);
+        formattedTime = formatter.format(new Date());
+        fileUtil.init(hardwareMap.appContext, "log " + formattedTime);
 
         startServoTicks = rightFront.getCurrentPosition();
 
@@ -349,10 +353,16 @@ public class basicTeleOp extends OpMode {
                         .collect(Collectors.joining(","));
             }
             fileUtil.overwriteFromIndex(dataString, 0);
-            telemetry.addLine("loaded file");
+            telemetry.addLine("loaded file: " + formattedTime);
+            telemetry.addData("samples", times.size());
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             telemetry.update();
             try {
-                Thread.sleep(5000);
+                Thread.sleep(3000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -420,7 +430,7 @@ public class basicTeleOp extends OpMode {
             turretFlywheel.setPower(OFF);
         }
 
-        if (iterations % 15 == 0) {
+        if (iterations % 10 == 0) {
             RPMs.add(motorCurrentRPM);
             motorPowers.add(motorPower);
             voltages.add(voltageSensor.getVoltage());

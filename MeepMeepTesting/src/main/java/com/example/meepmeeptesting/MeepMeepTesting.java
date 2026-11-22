@@ -44,8 +44,8 @@ public class MeepMeepTesting {
                 .setConstraints(60, 60, Math.toRadians(180), Math.toRadians(180), 15)
                 .build();
 
-        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(new Vector2d(-12, -63), Math.toRadians(90)))
-                .strafeTo(new Vector2d(-50, -63))
+        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(new Vector2d(60, 0), Math.toRadians(0)))
+                .lineToX(40)
                 .build());
 
         meepMeep.setBackground(img)
