@@ -411,12 +411,12 @@ public class basicTeleOp extends OpMode {
         turretCurrentAngle = (currentTicks / TICKS_PER_TURRET_ROTATION) * 360.0;
         telemetry.addData("current angle", turretCurrentAngle);
 
-        double servoPower = turretBasePid.tick(turretTargetAngle, turretCurrentAngle, dt);
-        if (Math.abs(servoPower) < 0.25 && !(Math.abs(servoPower) < 0.03)) {
-            servoPower = 0.25 * Math.signum(servoPower);
-        }
-        servoPower = Math.max(-ON, Math.min(ON, servoPower));
-        turretBase.setPower(servoPower);
+//        double servoPower = turretBasePid.tick(turretTargetAngle, turretCurrentAngle, dt);
+//        if (Math.abs(servoPower) < 0.25 && !(Math.abs(servoPower) < 0.03)) {
+//            servoPower = 0.25 * Math.signum(servoPower);
+//        }
+//        servoPower = Math.max(-ON, Math.min(ON, servoPower));
+//        turretBase.setPower(servoPower);
 
         double motorPower = 0;
         if (flywheelPidfEnabled) {
@@ -436,7 +436,7 @@ public class basicTeleOp extends OpMode {
             voltages.add(voltageSensor.getVoltage());
             targetRPMs.add(targetRPM);
             currentAngles.add(turretCurrentAngle);
-            servoPowers.add(servoPower);
+            servoPowers.add(0.0);
             targetAngles.add(turretTargetAngle);
             robotXPositions.add(pose.position.x);
             robotYPositions.add(pose.position.y);
