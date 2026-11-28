@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@TeleOp(name = "basic_TeleOp11/28DASECOND")
+@TeleOp(name = "basic_TeleOp11/28DATHIRD")
 public class basicTeleOp extends OpMode {
     // constants
     private final double OFF = 0;
@@ -47,7 +47,7 @@ public class basicTeleOp extends OpMode {
     private final double INTAKEPOWER = 1;
     private final double MOTORTICKSPERORTATION = 28;
     private final double TICKS_PER_TURRET_ROTATION = 1436;
-    private final double shootingRPM = 3050; // TODO: get real value
+    private final double shootingRPM = 3150; // TODO: get real value
     //Old value 3450
     private final double armDownPos = 0.41;
     private final double armUpPos = 0;
