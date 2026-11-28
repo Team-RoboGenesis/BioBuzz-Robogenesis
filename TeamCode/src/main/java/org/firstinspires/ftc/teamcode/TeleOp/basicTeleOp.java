@@ -47,7 +47,8 @@ public class basicTeleOp extends OpMode {
     private final double INTAKEPOWER = 1;
     private final double MOTORTICKSPERORTATION = 28;
     private final double TICKS_PER_TURRET_ROTATION = 1436;
-    private final double shootingRPM = 3450; // TODO: get real value
+    private final double shootingRPM = 3250; // TODO: get real value
+    //Old value 3450
     private final double armDownPos = 0.41;
     private final double armUpPos = 0;
     private final double trasferServoSpeed = 1;
@@ -381,7 +382,7 @@ public class basicTeleOp extends OpMode {
         double goalY = closest.get(1);
 
         telemetry.addData("closest gaol x", goalX);
-        telemetry.addData("closest gao y", goalY);
+        telemetry.addData("closest gaol y", goalY);
 
         double robotHeading = pose.heading.toDouble();
 
