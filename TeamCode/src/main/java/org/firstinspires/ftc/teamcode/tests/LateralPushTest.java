@@ -36,7 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-@TeleOp(name = "LateralPushTest2")
+@TeleOp(name = "LateralPushTest2a")
 public class LateralPushTest extends OpMode{
     private MecanumDrive drive = null;
     private DcMotorEx rightFront = null;
