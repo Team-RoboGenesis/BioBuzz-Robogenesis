@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@TeleOp(name = "basic TeleOp")
+@TeleOp(name = "basic_TeleOp")
 public class basicTeleOp extends OpMode {
     // constants
     private final double OFF = 0;
